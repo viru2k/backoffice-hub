@@ -6,6 +6,7 @@ import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 
 import { AuthGuard } from '@nestjs/passport';
 import { RegisterUserDto } from './dto/register-user.dto';
+import { LoginDto } from './dto/login.dto';
 
 @ApiTags('auth')
 @Controller('auth')
@@ -20,9 +21,9 @@ export class AuthController {
 
   @ApiOperation({ summary: 'Login de usuario, devuelve JWT' })
   @Post('login')
-  async login(@Body() body: { email: string, password: string }) {
-    const user = await this.authService.validateUser(body.email, body.password);
-    return this.authService.login(user);
+  @ApiOperation({ summary: 'Iniciar sesión' })
+  async login(@Body() loginDto: LoginDto) {
+    return this.authService.login(loginDto.email, loginDto.password);
   }
 
   @ApiOperation({ summary: 'Obtener datos del usuario autenticado' })

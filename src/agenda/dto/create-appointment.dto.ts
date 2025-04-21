@@ -2,7 +2,7 @@ import { IsString, IsNotEmpty, IsOptional, IsDateString } from 'class-validator'
 import { ApiProperty } from '@nestjs/swagger';
 
 export class CreateAppointmentDto {
-  @ApiProperty({ example: 'Reunión con proveedor' })
+  @ApiProperty({ example: 'Consulta médica' })
   @IsString()
   @IsNotEmpty()
   title: string;
@@ -11,7 +11,7 @@ export class CreateAppointmentDto {
   @IsDateString()
   date: string;
 
-  @ApiProperty({ required: false })
+  @ApiProperty({ example: 'Chequeo general', required: false })
   @IsOptional()
   @IsString()
   description?: string;

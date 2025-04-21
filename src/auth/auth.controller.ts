@@ -3,8 +3,9 @@ import { AuthService } from './auth.service';
 //import { LocalAuthGuard } from './local-auth.guard';
 
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
-import { RegisterUserDto } from 'src/user/dto/register-subuser.dto';
+
 import { AuthGuard } from '@nestjs/passport';
+import { RegisterUserDto } from './dto/register-user.dto';
 
 @ApiTags('auth')
 @Controller('auth')
@@ -13,7 +14,7 @@ export class AuthController {
 
   @ApiOperation({ summary: 'Registro de usuario principal con suscripción' })
   @Post('register')
-  async register(@Body() dto: RegisterUserDto) {
+  register(@Body() dto: RegisterUserDto) {
     return this.authService.register(dto);
   }
 

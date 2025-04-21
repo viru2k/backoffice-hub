@@ -1,0 +1,19 @@
+version: '3.8'
+
+services:
+  db-backoffice:
+    image: mysql:8.0
+    container_name: db-backoffice
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: admin123
+      MYSQL_DATABASE: backoffice_core
+      MYSQL_USER: backadmin
+      MYSQL_PASSWORD: backadmin123
+    ports:
+      - "3307:3306"
+    volumes:
+      - db_data_backoffice:/var/lib/mysql
+
+volumes:
+  db_data_backoffice:

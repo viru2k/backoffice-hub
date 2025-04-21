@@ -1,5 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsEmail, IsString, IsNotEmpty, IsArray, IsIn } from 'class-validator';
+import { IsEmail, IsString, IsNotEmpty, IsArray, ArrayNotEmpty, ArrayUnique, IsIn } from 'class-validator';
+import { VALID_SERVICES } from 'src/common/constants/services';
 
 export class RegisterUserDto {
   @ApiProperty({ example: 'admin@empresa.com' })
@@ -17,5 +18,8 @@ export class RegisterUserDto {
 
   @ApiProperty({ type: [String], example: ['agenda', 'inventory'] })
   @IsArray()
+  @ArrayNotEmpty()
+  @ArrayUnique()
+  @IsIn(VALID_SERVICES, { each: true })
   services: string[];
 }

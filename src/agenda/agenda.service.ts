@@ -1,163 +1,189 @@
-import { Injectable, ForbiddenException, BadRequestException } from '@nestjs/common';
+import { CreateHolidayDto } from './entities/create-holiday.dto';
+import {
+  BadRequestException,
+  Injectable,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Appointment, AppointmentStatus } from './entities/appointment.entity';
-import { Repository } from 'typeorm';
-import { CreateAppointmentDto } from './dto/create-appointment.dto';
-import { User } from 'src/user/entities/user.entity';
-import { VALID_STATUS_TRANSITIONS } from './constants/status-transition-map';
-import { UpdateAgendaConfigDto } from './dto/update-agenda-config.dto';
+import { Between, Repository } from 'typeorm';
+import { Appointment } from './entities/appointment.entity';
 import { AgendaConfig } from './entities/agenda-config.entity';
 import { Holiday } from './entities/holiday.entity';
-import { CreateHolidayDto } from './entities/create-holiday.dto';
+import { User } from 'src/user/entities/user.entity';
+import { CreateAppointmentDto } from './dto/create-appointment.dto';
+import { UpdateAgendaConfigDto } from './dto/update-agenda-config.dto';
+import { BookAppointmentDto } from './dto/book-appointment.dto';
+import { addMinutes, format, isBefore } from 'date-fns';
 
 @Injectable()
 export class AgendaService {
-
-  
   constructor(
     @InjectRepository(Appointment)
     private readonly appointmentRepo: Repository<Appointment>,
-    @InjectRepository(AgendaConfig) 
+
+    @InjectRepository(AgendaConfig)
     private readonly agendaConfigRepo: Repository<AgendaConfig>,
-    @InjectRepository(Holiday)     private readonly holidayRepo: Repository<Holiday>,
+
+    @InjectRepository(Holiday)
+    private readonly holidayRepo: Repository<Holiday>,
   ) {}
 
+  // Crear cita
   async create(dto: CreateAppointmentDto, user: User) {
-    const userId = user.id;
-    const date = new Date(dto.date);
-    const hour = date.toTimeString().slice(0, 5); // 'HH:MM'
-    const dayName = date.toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase(); // 'monday'
-  
-    const config = await this.agendaConfigRepo.findOne({ where: { user: { id: userId } } });
-    if (!config) throw new BadRequestException('No hay configuración de agenda');
-  
-    // Validar día laboral
-    if (!config.workingDays.includes(dayName)) {
-      if (!config.allowBookingOnBlockedDays) {
-        throw new BadRequestException(`No se permiten turnos los días no laborales (${dayName})`);
-      }
-    }
-  
-    // Validar si es feriado
-    const isHoliday = await this.holidayRepo.findOne({ where: { user: { id: userId }, date: dto.date.slice(0, 10) } });
-    if (isHoliday && !config.allowBookingOnBlockedDays) {
-      throw new BadRequestException('No se permiten turnos en días festivos');
-    }
-  
-    // Validar horario
-    if (hour < config.startTime || hour >= config.endTime) {
-      throw new BadRequestException(`El turno debe estar entre ${config.startTime} y ${config.endTime}`);
-    }
-  
-    // Validar solapamiento
-    const overlapping = await this.appointmentRepo.findOne({
-      where: {
-        user: { id: userId },
-        date: new Date(dto.date),
-      },
-    });
-  
-    if (overlapping && !config.overbookingAllowed) {
-      throw new BadRequestException('Ya hay un turno asignado para esta hora');
-    }
-  
     const appointment = this.appointmentRepo.create({
       ...dto,
-      date,
+      date: new Date(dto.date),
       user,
       status: 'pending',
     });
-  
     return this.appointmentRepo.save(appointment);
   }
 
-  async updateStatus(appointmentId: number, userId: number, newStatus: AppointmentStatus) {
-    const appointment = await this.appointmentRepo.findOne({
-      where: { id: appointmentId, user: { id: userId } },
+  // Book automático desde frontend
+  async book(dto: BookAppointmentDto, user: User) {
+    const userId = user.id;
+    const datetime = new Date(`${dto.date}T${dto.time}`);
+    const config = await this.agendaConfigRepo.findOne({ where: { user: { id: userId } } });
+
+    if (!config) throw new BadRequestException('No hay configuración de agenda');
+
+    const day = datetime.toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase();
+    const isWorkingDay = config.workingDays.includes(day);
+
+    const isHoliday = await this.holidayRepo.findOne({ where: { user: { id: userId }, date: dto.date } });
+    if ((!isWorkingDay || isHoliday) && !config.allowBookingOnBlockedDays) {
+      throw new BadRequestException('Día no habilitado para turnos');
+    }
+
+    const hour = dto.time;
+    if (hour < config.startTime || hour >= config.endTime) {
+      throw new BadRequestException('Hora fuera del horario configurado');
+    }
+
+    const overlapping = await this.appointmentRepo.findOne({ where: { user: { id: userId }, date: datetime } });
+    if (overlapping && !config.overbookingAllowed) {
+      throw new BadRequestException('Ya hay un turno en ese horario');
+    }
+
+    const appointment = this.appointmentRepo.create({
+      title: dto.title,
+      description: dto.description,
+      date: datetime,
+      user,
+      status: 'pending',
     });
-  
-    if (!appointment) {
-      throw new ForbiddenException('No tienes acceso a esta cita');
-    }
-  
-    const currentStatus = appointment.status;
-    const validNextStatuses = VALID_STATUS_TRANSITIONS[currentStatus];
-  
-    if (!validNextStatuses.includes(newStatus)) {
-      throw new BadRequestException(
-        `No se puede cambiar de estado "${currentStatus}" a "${newStatus}"`
-      );
-    }
-  
-    appointment.status = newStatus;
+
     return this.appointmentRepo.save(appointment);
   }
-  
-  
 
-  async findAll(user: User) {
-    return this.appointmentRepo.find({
-      where: { user: { id: user.id } },
-      order: { date: 'ASC' },
-    });
-  }
+  // Slots disponibles
+  async getAvailableSlots(date: string, userId: number) {
+    const config = await this.agendaConfigRepo.findOne({ where: { user: { id: userId } } });
+    if (!config) throw new BadRequestException('No hay configuración');
 
-  async updateConfig(dto: UpdateAgendaConfigDto, userId: number) {
-    const existing = await this.agendaConfigRepo.findOne({ where: { user: { id: userId } } });
-  
-    if (existing) {
-      Object.assign(existing, dto);
-      return this.agendaConfigRepo.save(existing);
+    const workingDay = new Date(date).toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase();
+    const isWorkingDay = config.workingDays.includes(workingDay);
+
+    const isHoliday = await this.holidayRepo.findOne({ where: { user: { id: userId }, date } });
+    if ((!isWorkingDay || isHoliday) && !config.allowBookingOnBlockedDays) {
+      return { date, slots: [], message: 'Día bloqueado' };
     }
-  
-    const newConfig = this.agendaConfigRepo.create({
-      ...dto,
-      user: { id: userId },
-    });
-  
-    return this.agendaConfigRepo.save(newConfig);
-  }
-  
 
+    const existing = await this.appointmentRepo.find({ where: { user: { id: userId }, date: new Date(date) } });
+
+    const slots = [];
+    let currentTime = new Date(`${date}T${config.startTime}`);
+    const endTime = new Date(`${date}T${config.endTime}`);
+
+    while (isBefore(currentTime, endTime)) {
+      const timeStr = format(currentTime, 'HH:mm');
+      const isTaken = existing.some(appt => format(appt.date, 'HH:mm') === timeStr);
+
+      slots.push({
+        time: timeStr,
+        available: config.overbookingAllowed ? true : !isTaken,
+      });
+
+      currentTime = addMinutes(currentTime, config.slotDuration);
+    }
+
+    return { date, slots };
+  }
+
+  // Obtener citas por fecha / rango / estado
+  async getAppointments(
+    filter: { date?: string; from?: string; to?: string; status?: string },
+    userId: number
+  ) {
+    const query = this.appointmentRepo.createQueryBuilder('appointment')
+      .where('appointment.userId = :userId', { userId });
+
+    if (filter.date) {
+      query.andWhere('DATE(appointment.date) = :date', { date: filter.date });
+    } else if (filter.from && filter.to) {
+      query.andWhere('DATE(appointment.date) BETWEEN :from AND :to', {
+        from: filter.from,
+        to: filter.to,
+      });
+    }
+
+    if (filter.status) {
+      query.andWhere('appointment.status = :status', { status: filter.status });
+    }
+
+    return query.orderBy('appointment.date', 'ASC').getMany();
+  }
+
+  // Configuración
   async getConfig(userId: number) {
-    const config = await this.agendaConfigRepo.findOne({
-      where: { user: { id: userId } },
-    });
-  
-    if (!config) {
-      // Podés devolver null o crear una por defecto, según tu lógica
-      return {
-        message: 'No hay configuración guardada para este usuario',
-        config: null,
-      };
-    }
-  
-    return config;
+    const config = await this.agendaConfigRepo.findOne({ where: { user: { id: userId } } });
+    return config || null;
   }
 
-  async addHoliday(dto: CreateHolidayDto, userId: number) {
-    const exists = await this.holidayRepo.findOne({
-      where: { user: { id: userId }, date: dto.date },
-    });
-  
-    if (exists) {
-      throw new BadRequestException('Ese día ya está marcado como feriado');
+  async updateConfig(userId: number, dto: UpdateAgendaConfigDto) {
+    let config = await this.agendaConfigRepo.findOne({ where: { user: { id: userId } } });
+
+    if (!config) {
+      config = this.agendaConfigRepo.create({ ...dto, user: { id: userId } });
+    } else {
+      Object.assign(config, dto);
     }
-  
-    const holiday = this.holidayRepo.create({
-      ...dto,
-      user: { id: userId },
-    });
-  
+
+    return this.agendaConfigRepo.save(config);
+  }
+
+  // Feriados
+  async addHoliday(dto: CreateHolidayDto, userId: number) {
+    const exists = await this.holidayRepo.findOne({ where: { user: { id: userId }, date: dto.date } });
+    if (exists) throw new BadRequestException('Ya existe un feriado en esa fecha');
+
+    const holiday = this.holidayRepo.create({ ...dto, user: { id: userId } });
     return this.holidayRepo.save(holiday);
   }
-  
+
   async getHolidays(userId: number) {
-    return this.holidayRepo.find({
-      where: { user: { id: userId } },
-      order: { date: 'ASC' },
-    });
+    return this.holidayRepo.find({ where: { user: { id: userId } }, order: { date: 'ASC' } });
   }
-  
-  
+
+  // Resumen de citas
+  async getSummary(userId: number, from: string, to: string) {
+    const appointments = await this.appointmentRepo.find({
+      where: {
+        user: { id: userId },
+        date: Between(new Date(from), new Date(to)),
+      },
+    });
+
+    const byStatus: Record<string, number> = {};
+    const byDate: Record<string, number> = {};
+    let total = 0;
+
+    for (const appt of appointments) {
+      total++;
+      byStatus[appt.status] = (byStatus[appt.status] || 0) + 1;
+      const day = format(appt.date, 'yyyy-MM-dd');
+      byDate[day] = (byDate[day] || 0) + 1;
+    }
+
+    return { total, byStatus, byDate };
+  }
 }

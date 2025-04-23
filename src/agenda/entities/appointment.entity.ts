@@ -30,6 +30,9 @@ export class Appointment {
   @Column({ nullable: true })
   description: string;
 
+  @Column({ type: 'datetime', nullable: true })
+  reminderSentAt: Date;
+  
   @ManyToOne(() => User, { eager: true })
   user: User;
 

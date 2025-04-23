@@ -7,6 +7,7 @@ import { SubscriptionModule } from './subscription/subscription.module';
 import { ServiceModule } from './service/service.module';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AgendaModule } from './agenda/agenda.module';
+import { NotificationModule } from './notification/notification.module';
 
 @Module({
   imports: [AuthModule, UserModule, SubscriptionModule, ServiceModule, AgendaModule, TypeOrmModule.forRoot({
@@ -18,7 +19,7 @@ import { AgendaModule } from './agenda/agenda.module';
     database: 'backoffice_core',
     autoLoadEntities: true,
     synchronize: true, // solo en desarrollo
-  }), ],
+  }), NotificationModule, ],
   controllers: [AppController],
   providers: [AppService],
 })

@@ -6,10 +6,14 @@ import { AgendaService } from './agenda.service';
 import { AgendaConfig } from './entities/agenda-config.entity';
 import { Holiday } from './entities/holiday.entity';
 import { ReminderService } from 'src/service/reminder.service';
+import { NotificationModule } from 'src/notification/notification.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Appointment, AgendaConfig, Holiday])],
-  controllers: [AgendaController],
+  imports: [
+    TypeOrmModule.forFeature([Appointment, AgendaConfig, Holiday]),
+    NotificationModule,
+  ],
   providers: [AgendaService, ReminderService],
+  controllers: [AgendaController],
 })
 export class AgendaModule {}

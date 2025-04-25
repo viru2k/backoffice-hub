@@ -1,38 +1,60 @@
-import { Controller, Get, Post, Body, Param, Put, Delete, ParseIntPipe } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Patch,
+  Post,
+  Request,
+  UseGuards,
+} from '@nestjs/common';
 import { ProductService } from './product.service';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
-import { Product } from './entities/product.entity';
+import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { AuthGuard } from '@nestjs/passport';
 
+@ApiTags('products')
+@ApiBearerAuth()
+@UseGuards(AuthGuard('jwt'))
 @Controller('products')
 export class ProductController {
-  constructor(private readonly productsService: ProductService) {}
+  constructor(private readonly productService: ProductService) {}
 
   @Post()
-  create(@Body() createProductDto: CreateProductDto): Promise<Product> {
-    return this.productsService.create(createProductDto);
+  @ApiOperation({ summary: 'Crear un nuevo producto' })
+  create(@Body() dto: CreateProductDto, @Request() req) {
+    return this.productService.create(dto, req.user);
   }
 
   @Get()
-  findAll(): Promise<Product[]> {
-    return this.productsService.findAll();
+  @ApiOperation({ summary: 'Listar productos del usuario' })
+  findAll(@Request() req) {
+    return this.productService.findAll(req.user.id);
   }
 
   @Get(':id')
-  findOne(@Param('id', ParseIntPipe) id: number): Promise<Product> {
-    return this.productsService.findOne(id);
+  @ApiOperation({ summary: 'Obtener detalles de un producto' })
+  findOne(@Param('id') id: number, @Request() req) {
+    return this.productService.findOne(id, req.user.id);
   }
 
-  @Put(':id')
-  update(
-    @Param('id', ParseIntPipe) id: number,
-    @Body() updateProductDto: UpdateProductDto,
-  ): Promise<Product> {
-    return this.productsService.update(id, updateProductDto);
+  @Patch(':id')
+  @ApiOperation({ summary: 'Actualizar un producto' })
+  update(@Param('id') id: number, @Body() dto: UpdateProductDto, @Request() req) {
+    return this.productService.update(id, dto, req.user.id);
   }
 
   @Delete(':id')
-  remove(@Param('id', ParseIntPipe) id: number): Promise<void> {
-    return this.productsService.remove(id);
+  @ApiOperation({ summary: 'Eliminar un producto' })
+  remove(@Param('id') id: number, @Request() req) {
+    return this.productService.remove(id, req.user.id);
+  }
+
+  @Patch(':id/activate')
+  @ApiOperation({ summary: 'Activar o desactivar un producto' })
+  activate(@Param('id') id: number, @Request() req) {
+    return this.productService.activate(id, req.user.id);
   }
 }

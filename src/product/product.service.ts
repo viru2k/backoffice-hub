@@ -4,37 +4,50 @@ import { Repository } from 'typeorm';
 import { Product } from './entities/product.entity';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
+import { User } from 'src/user/entities/user.entity';
 
 @Injectable()
 export class ProductService {
   constructor(
     @InjectRepository(Product)
-    private readonly productRepository: Repository<Product>,
+    private readonly productRepo: Repository<Product>,
   ) {}
 
-  async create(createProductDto: CreateProductDto): Promise<Product> {
-    const product = this.productRepository.create(createProductDto);
-    return this.productRepository.save(product);
+  async create(dto: CreateProductDto, user: User) {
+    const product = this.productRepo.create({
+      ...dto,
+      owner: user,
+    });
+    return this.productRepo.save(product);
   }
 
-  async findAll(): Promise<Product[]> {
-    return this.productRepository.find();
+  async findAll(userId: number) {
+    return this.productRepo.find({ where: { owner: { id: userId } } });
   }
 
-  async findOne(id: number): Promise<Product> {
-    const product = await this.productRepository.findOne({ where: { id } });
-    if (!product) {
-      throw new NotFoundException(`Product with ID ${id} not found`);
-    }
+  async findOne(id: number, userId: number) {
+    const product = await this.productRepo.findOne({
+      where: { id, owner: { id: userId } },
+    });
+
+    if (!product) throw new NotFoundException('Producto no encontrado');
     return product;
   }
 
-  async update(id: number, updateProductDto: UpdateProductDto): Promise<Product> {
-    await this.productRepository.update(id, updateProductDto);
-    return this.findOne(id);
+  async update(id: number, dto: UpdateProductDto, userId: number) {
+    const product = await this.findOne(id, userId);
+    Object.assign(product, dto);
+    return this.productRepo.save(product);
   }
 
-  async remove(id: number): Promise<void> {
-    await this.productRepository.softDelete(id);
+  async remove(id: number, userId: number) {
+    const product = await this.findOne(id, userId);
+    return this.productRepo.remove(product);
+  }
+
+  async activate(id: number, userId: number) {
+    const product = await this.findOne(id, userId);
+    product.active = !product.active;
+    return this.productRepo.save(product);
   }
 }

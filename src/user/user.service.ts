@@ -37,4 +37,23 @@ export class UserService {
     async findByEmail(email: string): Promise<User> {
         return this.userRepository.findOne({ where: { email } });
       }
+
+      async getSubUsers(ownerId: number) {
+        return this.userRepository.find({
+          where: { owner: { id: ownerId } },
+        });
+      }
+      async toggleSubUser(id: number, ownerId: number) {
+        const user = await this.userRepository.findOne({
+          where: { id, owner: { id: ownerId } },
+        });
+      
+        if (!user) {
+          throw new Error('Subusuario no encontrado o no autorizado.');
+        }
+      
+        user.isActive = !user.isActive;
+        return this.userRepository.save(user);
+      }
+            
 }

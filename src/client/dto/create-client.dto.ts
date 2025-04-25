@@ -37,10 +37,10 @@ export class CreateClientDto {
   @IsDateString()
   birthDate?: string;
 
-  @ApiProperty({ enum: ['activo', 'inactivo', 'alta', 'baja'], default: 'activo' })
+  @ApiProperty({ enum: ['ACTIVE', 'INACTIVE', 'CREATED'], default: 'ACTIVE' })
   @IsOptional()
-  @IsEnum(['activo', 'inactivo', 'alta', 'baja'])
-  status?: 'activo' | 'inactivo' | 'alta' | 'baja';
+  @IsEnum(['ACTIVE', 'INACTIVE', 'CREATED'])
+  status?: 'ACTIVE' | 'INACTIVE' | 'CREATED' ;
 
   @ApiProperty({ example: 'Paciente con historial de alergias', required: false })
   @IsOptional()

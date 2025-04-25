@@ -12,8 +12,9 @@ import {
 import { ProductService } from './product.service';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
-import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { AuthGuard } from '@nestjs/passport';
+import { ProductResponseDto } from './dto/product-response.dto';
 
 @ApiTags('products')
 @ApiBearerAuth()
@@ -24,24 +25,28 @@ export class ProductController {
 
   @Post()
   @ApiOperation({ summary: 'Crear un nuevo producto' })
+  @ApiResponse({ type: [ProductResponseDto] })
   create(@Body() dto: CreateProductDto, @Request() req) {
     return this.productService.create(dto, req.user);
   }
 
   @Get()
   @ApiOperation({ summary: 'Listar productos del usuario' })
+  @ApiResponse({ type: [ProductResponseDto] })
   findAll(@Request() req) {
     return this.productService.findAll(req.user.id);
   }
 
   @Get(':id')
   @ApiOperation({ summary: 'Obtener detalles de un producto' })
+  @ApiResponse({ type: [ProductResponseDto] })
   findOne(@Param('id') id: number, @Request() req) {
     return this.productService.findOne(id, req.user.id);
   }
 
   @Patch(':id')
   @ApiOperation({ summary: 'Actualizar un producto' })
+  @ApiResponse({ type: [ProductResponseDto] })
   update(@Param('id') id: number, @Body() dto: UpdateProductDto, @Request() req) {
     return this.productService.update(id, dto, req.user.id);
   }
@@ -54,6 +59,7 @@ export class ProductController {
 
   @Patch(':id/toggle')
   @ApiOperation({ summary: 'Alternar estado activo/inactivo de un producto' })
+  @ApiResponse({ type: ProductResponseDto })
   toggle(@Param('id') id: number, @Request() req) {
     return this.productService.toggleStatus(id, req.user.id);
   }

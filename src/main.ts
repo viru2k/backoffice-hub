@@ -10,7 +10,7 @@ async function bootstrap() {
   const config = new DocumentBuilder()
   .setTitle('Backoffice Hub API')
   .setDescription('API del sistema SaaS modular de backoffice')
-  .setVersion('1.0')
+  .setVersion('1.1.0')
   .addBearerAuth() // para usar Authorization: Bearer token
   .build();
   const document = SwaggerModule.createDocument(app, config);

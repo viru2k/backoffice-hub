@@ -5,8 +5,10 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
   ManyToOne,
+  OneToMany,
 } from 'typeorm';
 import { User } from 'src/user/entities/user.entity';
+import { ProductPriceHistory } from './product-price-history.entity';
 
 @Entity()
 export class Product {
@@ -19,14 +21,17 @@ export class Product {
   @Column({ nullable: true })
   description?: string;
 
-  @Column('decimal', { precision: 10, scale: 2 })
-  price: number;
+  @Column({ default: 'activo' })
+  status: 'activo' | 'inactivo' | 'descatalogado' | 'agotado' | 'suspendido';
 
-  @Column({ default: true })
-  active: boolean;
+  @Column('decimal', { precision: 10, scale: 2 })
+  currentPrice: number;
 
   @ManyToOne(() => User, { eager: true })
   owner: User;
+
+  @OneToMany(() => ProductPriceHistory, history => history.product)
+  priceHistory: ProductPriceHistory[];
 
   @CreateDateColumn()
   createdAt: Date;
@@ -34,3 +39,4 @@ export class Product {
   @UpdateDateColumn()
   updatedAt: Date;
 }
+

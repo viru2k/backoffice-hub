@@ -14,7 +14,7 @@ import { CreateAppointmentDto } from './dto/create-appointment.dto';
 import { BookAppointmentDto } from './dto/book-appointment.dto';
 
 import { UpdateAgendaConfigDto } from './dto/update-agenda-config.dto';
-import { ApiBearerAuth, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiOperation, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { AuthGuard } from '@nestjs/passport';
 import {
   endOfToday,
@@ -24,6 +24,12 @@ import {
 } from 'date-fns';
 import { CreateHolidayDto } from './entities/create-holiday.dto';
 import { RegisterProductsUsedDto } from './dto/register-products-used.dto';
+import { AppointmentResponseDto } from './dto/appointment-response.dto';
+import { AvailableSlotResponseDto } from './dto/available-slot-response.dto';
+import { AgendaConfigResponseDto } from './dto/agenda-config-response.dto';
+import { HolidayResponseDto } from './dto/holiday-response.dto';
+import { AppointmentSummaryResponseDto } from './dto/appointment-summary-response.dto';
+import { AppointmentProductLogResponseDto } from './dto/appointment-product-log-response.dto';
 
 @ApiTags('agenda')
 @ApiBearerAuth()
@@ -34,12 +40,14 @@ export class AgendaController {
 
   @Post()
   @ApiOperation({ summary: 'Crear un turno manual' })
+  @ApiResponse({ type: AppointmentResponseDto })
   create(@Body() dto: CreateAppointmentDto, @Request() req) {
     return this.agendaService.create(dto, req.user);
   }
 
   @Post('book')
   @ApiOperation({ summary: 'Reservar un turno en un slot disponible' })
+  @ApiResponse({ type: AppointmentResponseDto })
   book(@Body() dto: BookAppointmentDto, @Request() req) {
     return this.agendaService.book(dto, req.user);
   }
@@ -62,6 +70,7 @@ export class AgendaController {
   })
   @Get()
   @ApiOperation({ summary: 'Obtener turnos por fecha, rango o estado' })
+  @ApiResponse({ type: [AppointmentResponseDto] })
   getAppointments(
     @Request() req,
     @Query('date') date?: string,
@@ -74,12 +83,14 @@ export class AgendaController {
 
   @Get('available')
   @ApiOperation({ summary: 'Ver slots disponibles para un día' })
+  @ApiResponse({ type: [AvailableSlotResponseDto] })
   getAvailable(@Query('date') date: string, @Request() req) {
     return this.agendaService.getAvailableSlots(date, req.user.id);
   }
 
   @Get('config')
   @ApiOperation({ summary: 'Obtener configuración personalizada de agenda' })
+  @ApiResponse({ type: AgendaConfigResponseDto })
   getConfig(@Request() req) {
     return this.agendaService.getConfig(req.user.id);
   }
@@ -92,12 +103,14 @@ export class AgendaController {
 
   @Post('holiday')
   @ApiOperation({ summary: 'Agregar feriado para bloquear ese día' })
+  @ApiResponse({ type: HolidayResponseDto })
   addHoliday(@Body() dto: CreateHolidayDto, @Request() req) {
     return this.agendaService.addHoliday(dto, req.user.id);
   }
 
   @Get('holidays')
   @ApiOperation({ summary: 'Listar feriados configurados por el usuario' })
+  @ApiResponse({ type: [HolidayResponseDto] })
   getHolidays(@Request() req) {
     return this.agendaService.getHolidays(req.user.id);
   }
@@ -106,6 +119,7 @@ export class AgendaController {
   @ApiQuery({ name: 'to', required: true, type: String })
   @Get('summary')
   @ApiOperation({ summary: 'Resumen de citas por estado y por día' })
+  @ApiResponse({ type: AppointmentSummaryResponseDto })
   getSummary(
     @Request() req,
     @Query('from') from: string,
@@ -116,6 +130,7 @@ export class AgendaController {
 
   @Get('today')
   @ApiOperation({ summary: 'Turnos del día actual' })
+  @ApiResponse({ type: [AppointmentResponseDto] })
   getToday(@Request() req) {
     const from = startOfToday().toISOString();
     const to = endOfToday().toISOString();
@@ -124,6 +139,7 @@ export class AgendaController {
 
   @Get('week')
   @ApiOperation({ summary: 'Turnos de la semana actual' })
+  @ApiResponse({ type: [AppointmentResponseDto] })
   getWeek(@Request() req) {
     const from = startOfWeek(new Date(), { weekStartsOn: 1 }).toISOString();
     const to = endOfWeek(new Date(), { weekStartsOn: 1 }).toISOString();
@@ -132,6 +148,7 @@ export class AgendaController {
 
   @Patch(':id/products-used')
 @ApiOperation({ summary: 'Registrar productos utilizados en la cita' })
+@ApiResponse({ schema: { example: { message: 'Productos registrados correctamente' } } })
 registerProductsUsed(
   @Param('id') id: number,
   @Body() dto: RegisterProductsUsedDto,
@@ -142,6 +159,7 @@ registerProductsUsed(
 
 @Get(':id/products')
 @ApiOperation({ summary: 'Obtener productos utilizados en una cita' })
+@ApiResponse({ type: [AppointmentProductLogResponseDto] })
 getProductsUsed(@Param('id') id: number, @Request() req) {
   return this.agendaService.getProductsUsedByAppointment(id, req.user.id);
 }

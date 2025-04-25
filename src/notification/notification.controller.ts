@@ -1,4 +1,4 @@
-import { ApiBearerAuth, ApiOperation, ApiTags } from "@nestjs/swagger";
+import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from "@nestjs/swagger";
 import { NotificationService } from "./notification.service";
 import { AuthGuard } from "@nestjs/passport";
 import { Body, Controller, Get, NotFoundException, Param, Patch, Post, Request, UseGuards } from "@nestjs/common";
@@ -6,6 +6,8 @@ import { InjectRepository } from "@nestjs/typeorm";
 import { FailedNotification } from "./entities/failed-notification.entity";
 import { Repository } from "typeorm";
 import { CreateNotificationDto } from "./dto/create-notification.dto";
+import { NotificationSummaryResponseDto } from "./dto/notification-summary-response.dto";
+import { NotificationResponseDto } from "./dto/notification-response.dto";
 
 @ApiTags('notifications')
 @ApiBearerAuth()
@@ -17,6 +19,7 @@ export class NotificationController {
 
   @Get()
   @ApiOperation({ summary: 'Obtener todas las notificaciones del usuario' })
+  @ApiResponse({ type: [NotificationResponseDto] })
   getAll(@Request() req) {
     return this.notificationService.getAll(req.user.id);
   }
@@ -32,6 +35,7 @@ createNotification(
 
   @Patch(':id/read')
   @ApiOperation({ summary: 'Marcar una notificación como leída' })
+  @ApiResponse({ schema: { example: { message: 'Notificación marcada como leída' } } })
   markAsRead(@Param('id') id: number, @Request() req) {
     return this.notificationService.markAsRead(id, req.user.id);
   }
@@ -68,6 +72,7 @@ getUnread(@Request() req) {
 
 @Get('summary')
 @ApiOperation({ summary: 'Resumen de notificaciones para dashboard' })
+@ApiResponse({ type: NotificationSummaryResponseDto })
 getSummary(@Request() req) {
   return this.notificationService.getSummary(req.user.id);
 }

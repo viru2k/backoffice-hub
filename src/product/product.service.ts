@@ -20,6 +20,7 @@ export class ProductService {
     const product = this.productRepo.create({
       ...dto,
       owner: user,
+      currentPrice: dto.price,
     });
     return this.productRepo.save(product);
   }

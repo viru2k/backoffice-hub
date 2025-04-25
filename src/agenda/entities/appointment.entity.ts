@@ -6,6 +6,7 @@ import {
   CreateDateColumn,
 } from 'typeorm';
 import { User } from 'src/user/entities/user.entity';
+import { Client } from 'src/client/entities/client.entity';
 
 export type AppointmentStatus =
   | 'pending'
@@ -35,7 +36,10 @@ export class Appointment {
   
   @ManyToOne(() => User, { eager: true })
   user: User;
-
+  
+  @ManyToOne(() => Client, { nullable: true, eager: true })
+  client?: Client;
+  
   @Column({
     type: 'enum',
     enum: [

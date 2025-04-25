@@ -2,6 +2,7 @@ import { CreateHolidayDto } from './entities/create-holiday.dto';
 import {
   BadRequestException,
   Injectable,
+  NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Between, Repository } from 'typeorm';
@@ -13,6 +14,10 @@ import { CreateAppointmentDto } from './dto/create-appointment.dto';
 import { UpdateAgendaConfigDto } from './dto/update-agenda-config.dto';
 import { BookAppointmentDto } from './dto/book-appointment.dto';
 import { addMinutes, format, isBefore } from 'date-fns';
+import { RegisterProductsUsedDto } from './dto/register-products-used.dto';
+import { Product } from 'src/product/entities/product.entity';
+import { AppointmentProductLog } from './entities/appointment-product-log.entity';
+import { StockMovement } from 'src/stock/entities/stock-movement.entity';
 
 @Injectable()
 export class AgendaService {
@@ -24,7 +29,16 @@ export class AgendaService {
     private readonly agendaConfigRepo: Repository<AgendaConfig>,
 
     @InjectRepository(Holiday)
-    private readonly holidayRepo: Repository<Holiday>,
+    private readonly holidayRepo: Repository<Holiday>, 
+    
+    @InjectRepository(Product)
+    private readonly productRepo: Repository<Product>,
+
+    @InjectRepository(AppointmentProductLog)
+    private readonly productLogRepo: Repository<AppointmentProductLog>,
+
+    @InjectRepository(StockMovement)
+    private readonly stockRepo: Repository<StockMovement>,
   ) {}
 
   // Crear cita
@@ -186,4 +200,74 @@ export class AgendaService {
 
     return { total, byStatus, byDate };
   }
+
+  async registerProductsUsed(
+    appointmentId: number,
+    dto: RegisterProductsUsedDto,
+    user: User,
+  ) {
+    const appointment = await this.appointmentRepo.findOne({
+      where: { id: appointmentId, user: { id: user.id } },
+    });
+  
+    if (!appointment) {
+      throw new NotFoundException('Cita no encontrada');
+    }
+  
+    for (const item of dto.products) {
+      const product = await this.productRepo.findOne({
+        where: { id: item.productId, owner: { id: user.id } },
+      });
+  
+      if (!product) {
+        throw new NotFoundException(`Producto ID ${item.productId} no encontrado`);
+      }
+  
+      // 1. Guardar en log
+      await this.productLogRepo.save({
+        appointment,
+        product,
+        quantity: item.quantity,
+        priceAtTime: product.currentPrice,
+      });
+  
+      // 2. Registrar movimiento en stock
+      await this.stockRepo.save({
+        product,
+        productNameAtTime: product.name,
+        quantity: item.quantity,
+        type: 'usage',
+        reason: `Uso en cita ID ${appointmentId}`,
+        user,
+      });
+    }
+  
+    return { message: 'Productos registrados correctamente' };
+  }
+
+  async getProductsUsedByAppointment(appointmentId: number, userId: number) {
+    const appointment = await this.appointmentRepo.findOne({
+      where: { id: appointmentId, user: { id: userId } },
+    });
+  
+    if (!appointment) {
+      throw new NotFoundException('Cita no encontrada');
+    }
+  
+    const logs = await this.productLogRepo.find({
+      where: { appointment: { id: appointmentId } },
+      relations: ['product'],
+      order: { usedAt: 'DESC' },
+    });
+  
+    return logs.map(log => ({
+      productId: log.product.id,
+      name: log.product.name,
+      quantity: log.quantity,
+      priceAtTime: log.priceAtTime,
+      usedAt: log.usedAt,
+    }));
+  }
+  
+  
 }

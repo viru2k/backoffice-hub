@@ -2,6 +2,7 @@ import {
   Body,
   Controller,
   Get,
+  Param,
   Patch,
   Post,
   Query,
@@ -22,6 +23,7 @@ import {
   startOfWeek,
 } from 'date-fns';
 import { CreateHolidayDto } from './entities/create-holiday.dto';
+import { RegisterProductsUsedDto } from './dto/register-products-used.dto';
 
 @ApiTags('agenda')
 @ApiBearerAuth()
@@ -127,4 +129,22 @@ export class AgendaController {
     const to = endOfWeek(new Date(), { weekStartsOn: 1 }).toISOString();
     return this.agendaService.getAppointments({ from, to }, req.user.id);
   }
+
+  @Patch(':id/products-used')
+@ApiOperation({ summary: 'Registrar productos utilizados en la cita' })
+registerProductsUsed(
+  @Param('id') id: number,
+  @Body() dto: RegisterProductsUsedDto,
+  @Request() req,
+) {
+  return this.agendaService.registerProductsUsed(id, dto, req.user);
+}
+
+@Get(':id/products')
+@ApiOperation({ summary: 'Obtener productos utilizados en una cita' })
+getProductsUsed(@Param('id') id: number, @Request() req) {
+  return this.agendaService.getProductsUsedByAppointment(id, req.user.id);
+}
+
+
 }

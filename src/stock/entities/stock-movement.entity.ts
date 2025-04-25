@@ -16,6 +16,9 @@ import {
     @ManyToOne(() => Product, { eager: true })
     product: Product;
   
+    @Column()
+    productNameAtTime: string; // Se copia del producto al momento del movimiento
+  
     @Column('int')
     quantity: number;
   
@@ -31,4 +34,5 @@ import {
     @CreateDateColumn()
     createdAt: Date;
   }
+  
   

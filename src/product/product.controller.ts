@@ -52,9 +52,9 @@ export class ProductController {
     return this.productService.remove(id, req.user.id);
   }
 
-  @Patch(':id/activate')
-  @ApiOperation({ summary: 'Activar o desactivar un producto' })
-  activate(@Param('id') id: number, @Request() req) {
-    return this.productService.activate(id, req.user.id);
+  @Patch(':id/toggle')
+  @ApiOperation({ summary: 'Alternar estado activo/inactivo de un producto' })
+  toggle(@Param('id') id: number, @Request() req) {
+    return this.productService.toggleStatus(id, req.user.id);
   }
 }

@@ -9,9 +9,10 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { AgendaModule } from './agenda/agenda.module';
 import { NotificationModule } from './notification/notification.module';
 import { ProductModule } from './product/product.module';
+import { StockModule } from './stock/stock.module';
 
 @Module({
-  imports: [AuthModule, UserModule, SubscriptionModule, ServiceModule, AgendaModule,ProductModule , TypeOrmModule.forRoot({
+  imports: [AuthModule, UserModule, SubscriptionModule, ServiceModule, AgendaModule,ProductModule ,StockModule , TypeOrmModule.forRoot({
     type: 'mysql',
     host: 'localhost',
     port: 3307, // recuerda, redireccionamos este puerto en Docker

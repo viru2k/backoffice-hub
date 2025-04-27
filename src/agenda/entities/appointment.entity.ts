@@ -5,8 +5,8 @@ import {
   ManyToOne,
   CreateDateColumn,
 } from 'typeorm';
-import { User } from 'src/user/entities/user.entity';
-import { Client } from 'src/client/entities/client.entity';
+import { User } from  './../../user/entities/user.entity'//'src/user/entities/user.entity';
+import { Client } from './../..//client/entities/client.entity';
 
 export type AppointmentStatus =
   | 'pending'
@@ -26,6 +26,10 @@ export class Appointment {
   title: string;
 
   @Column()
+name: string;
+
+
+  @Column()
   date: Date;
 
   @Column({ nullable: true })
@@ -36,9 +40,6 @@ export class Appointment {
   
   @ManyToOne(() => User, { eager: true })
   user: User;
-  
-  @ManyToOne(() => Client, { nullable: true, eager: true })
-  client?: Client;
   
   @Column({
     type: 'enum',
@@ -54,6 +55,10 @@ export class Appointment {
     default: 'pending',
   })
   status: AppointmentStatus;
+
+  @ManyToOne(() => Client, (client) => client.appointments, { nullable: false, onDelete: 'CASCADE' })
+client: Client;
+
 
   @CreateDateColumn()
   createdAt: Date;

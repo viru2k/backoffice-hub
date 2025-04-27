@@ -7,8 +7,9 @@ import {
   ManyToOne,
   OneToMany,
 } from 'typeorm';
-import { User } from 'src/user/entities/user.entity';
+import { User } from './../../user/entities/user.entity';
 import { ProductPriceHistory } from './product-price-history.entity';
+import { StockMovement } from './../../stock/entities/stock-movement.entity';
 
 @Entity()
 export class Product {
@@ -32,6 +33,14 @@ export class Product {
 
   @OneToMany(() => ProductPriceHistory, history => history.product)
   priceHistory: ProductPriceHistory[];
+
+
+
+  @ManyToOne(() => User, (user) => user.products, { onDelete: 'CASCADE' })
+  user: User; // <<< Relación con el usuario
+
+  @OneToMany(() => StockMovement, (movement) => movement.product)
+stockMovements: StockMovement[];
 
   @CreateDateColumn()
   createdAt: Date;

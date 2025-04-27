@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { User } from './entities/user.entity';
@@ -12,26 +12,22 @@ export class UserService {
         private readonly userRepository: Repository<User>,
       ) {}
 
-      async createSubUser(ownerId: number, dto: CreateSubUserDto): Promise<User> {
-        const owner = await this.userRepository.findOne({
-          where: { id: ownerId },
-          relations: ['subscription'],
-        });
-      
-        if (!owner || !owner.isAdmin) {
-          throw new Error('Usuario no autorizado o inválido');
+      async createSubUser(dto: CreateSubUserDto, owner: User) {
+        if (!owner.subscriptions || owner.subscriptions.length === 0) {
+          throw new BadRequestException('The owner does not have an active subscription.');
         }
-      
-        const hashed = await bcrypt.hash(dto.password, 10);
-      
+    
+        const hashedPassword = await bcrypt.hash(dto.password, 10);
+    
         const subUser = this.userRepository.create({
           email: dto.email,
-          password: hashed,
+          password: hashedPassword,
           isAdmin: false,
+          isActive: true,
           owner,
-          subscription: owner.subscription,
+          subscriptions: [owner.subscriptions[0]], // Asignamos la misma suscripción del owner
         });
-      
+    
         return this.userRepository.save(subUser);
       }
     async findByEmail(email: string): Promise<User> {

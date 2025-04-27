@@ -5,16 +5,23 @@ import {
     ManyToOne,
     CreateDateColumn,
   } from 'typeorm';
-  import { Product } from 'src/product/entities/product.entity';
-  import { User } from 'src/user/entities/user.entity';
+  import { Product } from './../../product/entities/product.entity';
+  import { User } from './../../user/entities/user.entity';
+  
+  export enum StockMovementType {
+    IN = 'in',
+    OUT = 'out',
+    ADJUSTMENT = 'adjustment',
+    USAGE = 'usage',
+  }
   
   @Entity()
   export class StockMovement {
+
+    
     @PrimaryGeneratedColumn()
     id: number;
-  
-    @ManyToOne(() => Product, { eager: true })
-    product: Product;
+
   
     @Column()
     productNameAtTime: string; // Se copia del producto al momento del movimiento
@@ -27,10 +34,16 @@ import {
   
     @Column({ nullable: true })
     reason?: string;
+ 
+    @ManyToOne(() => Product, (product) => product.stockMovements, { onDelete: 'CASCADE' })
+    product: Product;
   
-    @ManyToOne(() => User, { eager: true })
+    @ManyToOne(() => User, (user) => user.stockMovements, { onDelete: 'CASCADE' })
     user: User;
-  
+ 
+    @Column({ type: 'datetime' })
+    date: Date;
+
     @CreateDateColumn()
     createdAt: Date;
   }

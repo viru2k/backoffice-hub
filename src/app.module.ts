@@ -12,9 +12,10 @@ import { ProductModule } from './product/product.module';
 import { StockModule } from './stock/stock.module';
 import { ClientModule } from './client/client.module';
 import { SubscriptionPlanModule } from './subscription-plan/subscription-plan.module';
+import { SeedModule } from './seed/seed.module';
 
 @Module({
-  imports: [AuthModule, UserModule, SubscriptionModule, ServiceModule, AgendaModule,ProductModule ,StockModule ,ClientModule, SubscriptionPlanModule, TypeOrmModule.forRoot({
+  imports: [AuthModule, UserModule, SubscriptionModule, ServiceModule, AgendaModule,ProductModule ,StockModule ,ClientModule, SubscriptionPlanModule, SeedModule,TypeOrmModule.forRoot({
     type: 'mysql',
     host: 'localhost',
     port: 3307, // recuerda, redireccionamos este puerto en Docker

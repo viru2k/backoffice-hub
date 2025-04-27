@@ -5,12 +5,13 @@ import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
 /* import { JwtStrategy } from './jwt.strategy';
 import { jwtConstants } from './constants'; */
-import { UserModule } from 'src/user/user.module';
+import { UserModule } from './../user/user.module';
 import { jwtConstants } from './common/constants';
 import { JwtStrategy } from './common/jwt.strategy';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { Subscription } from 'src/subscription/entities/subscription.entity';
-import { User } from 'src/user/entities/user.entity';
+import { Subscription } from './../subscription/entities/subscription.entity';
+import { User } from './../user/entities/user.entity';
+import { SubscriptionPlan } from './../subscription-plan/entities/subscription-plan.entity';
 
 @Module({
   imports: [
@@ -20,7 +21,7 @@ import { User } from 'src/user/entities/user.entity';
       secret: jwtConstants.secret,
       signOptions: { expiresIn: '1d' },
     }),
-    TypeOrmModule.forFeature([Subscription, User])
+    TypeOrmModule.forFeature([Subscription,SubscriptionPlan, User])
   ],
   providers: [AuthService, JwtStrategy],
   controllers: [AuthController],

@@ -1,5 +1,6 @@
-import { User } from "src/user/entities/user.entity";
-import { Column, CreateDateColumn, Entity, ManyToOne, PrimaryGeneratedColumn, UpdateDateColumn } from "typeorm";
+import { Appointment } from "src/agenda/entities/appointment.entity";
+import { User } from "./../../user/entities/user.entity";
+import { Column, CreateDateColumn, Entity, ManyToOne, OneToMany, PrimaryGeneratedColumn, UpdateDateColumn } from "typeorm";
 
 @Entity()
 export class Client {
@@ -38,6 +39,14 @@ export class Client {
 
   @ManyToOne(() => User, { eager: true })
   owner: User;
+
+  @ManyToOne(() => User, (user) => user.clients, { onDelete: 'CASCADE' })
+  user: User;
+
+  @OneToMany(() => Appointment, (appointment) => appointment.client)
+  appointments: Appointment[];
+
+
 
   @CreateDateColumn()
   createdAt: Date;

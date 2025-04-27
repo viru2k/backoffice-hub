@@ -9,15 +9,15 @@ import { Between, Repository } from 'typeorm';
 import { Appointment } from './entities/appointment.entity';
 import { AgendaConfig } from './entities/agenda-config.entity';
 import { Holiday } from './entities/holiday.entity';
-import { User } from 'src/user/entities/user.entity';
+import { User } from '../user/entities/user.entity';
 import { CreateAppointmentDto } from './dto/create-appointment.dto';
 import { UpdateAgendaConfigDto } from './dto/update-agenda-config.dto';
 import { BookAppointmentDto } from './dto/book-appointment.dto';
 import { addMinutes, format, isBefore } from 'date-fns';
 import { RegisterProductsUsedDto } from './dto/register-products-used.dto';
-import { Product } from 'src/product/entities/product.entity';
+import { Product } from '../product/entities/product.entity';
 import { AppointmentProductLog } from './entities/appointment-product-log.entity';
-import { StockMovement } from 'src/stock/entities/stock-movement.entity';
+import { StockMovement } from '../stock/entities/stock-movement.entity';
 
 @Injectable()
 export class AgendaService {
@@ -268,6 +268,8 @@ export class AgendaService {
       usedAt: log.usedAt,
     }));
   }
+  
+
   
   
 }

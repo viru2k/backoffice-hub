@@ -1,13 +1,13 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { Injectable, UnauthorizedException, NotFoundException, BadRequestException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
-import { UserService } from 'src/user/user.service';
+import { UserService } from './../user/user.service';
 import * as bcrypt from 'bcrypt';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Subscription } from 'src/subscription/entities/subscription.entity';
-import { User } from 'src/user/entities/user.entity';
+import { Subscription } from './../subscription/entities/subscription.entity';
+import { SubscriptionPlan } from './../subscription-plan/entities/subscription-plan.entity';
+import { User } from './../user/entities/user.entity';
 import { Repository } from 'typeorm';
 import { RegisterUserDto } from './dto/register-user.dto';
-
 
 @Injectable()
 export class AuthService {
@@ -16,6 +16,8 @@ export class AuthService {
     private readonly jwtService: JwtService,
     @InjectRepository(Subscription)
     private readonly subscriptionRepo: Repository<Subscription>,
+    @InjectRepository(SubscriptionPlan)
+    private readonly subscriptionPlanRepo: Repository<SubscriptionPlan>,
     @InjectRepository(User)
     private readonly userRepo: Repository<User>,
   ) {}
@@ -24,35 +26,68 @@ export class AuthService {
     const hashedPassword = await bcrypt.hash(dto.password, 10);
 
     const now = new Date();
-    const end = new Date();
-    if (dto.subscriptionType === 'monthly') end.setMonth(now.getMonth() + 1);
-    if (dto.subscriptionType === 'semester') end.setMonth(now.getMonth() + 6);
-    if (dto.subscriptionType === 'annual') end.setFullYear(now.getFullYear() + 1);
+    const end = new Date(now);
+    if (dto.subscriptionType === 'monthly') {
+      end.setMonth(end.getMonth() + 1);
+    } else if (dto.subscriptionType === 'semester') {
+      end.setMonth(end.getMonth() + 6);
+    } else if (dto.subscriptionType === 'annual') {
+      end.setFullYear(end.getFullYear() + 1);
+    } else {
+      throw new BadRequestException('Invalid subscription type');
+    }
+    
 
+    // Buscar el SubscriptionPlan correspondiente
+    const planName = this.getPlanName(dto.subscriptionType);
+    const subscriptionPlan = await this.subscriptionPlanRepo.findOne({
+      where: { name: planName },
+    });
+
+    if (!subscriptionPlan) {
+      throw new NotFoundException(`Subscription plan ${planName} not found`);
+    }
+
+    // Crear la suscripción asociada al plan
     const subscription = this.subscriptionRepo.create({
-      name: `Plan ${dto.subscriptionType}`,
-      type: dto.subscriptionType,
-      services: dto.services,
+      subscriptionPlan: subscriptionPlan,
       startDate: now,
       endDate: end,
+      status: 'active',
     });
+
     await this.subscriptionRepo.save(subscription);
 
+    // Crear el usuario principal
     const user = this.userRepo.create({
       email: dto.email,
       password: hashedPassword,
+      fullName: dto.fullName,
       isAdmin: true,
-      subscription,
+      isActive: true,
+      subscriptions: [subscription], // <<< ahora sí plural
     });
+
     await this.userRepo.save(user);
 
+    // Actualizar la suscripción con el usuario
+    subscription.user = user;
+    await this.subscriptionRepo.save(subscription);
+
+    // Crear el JWT
     const payload = { email: user.email, sub: user.id, isAdmin: user.isAdmin };
     return {
       access_token: this.jwtService.sign(payload),
     };
   }
 
-  // login y validateUser también deben estar
+  private getPlanName(subscriptionType: string): string {
+    if (subscriptionType === 'monthly') return 'Starter';
+    if (subscriptionType === 'semester') return 'Professional';
+    if (subscriptionType === 'annual') return 'Enterprise';
+    throw new Error('Invalid subscription type');
+  }
+
   async validateUser(email: string, password: string) {
     const user = await this.userService.findByEmail(email);
     if (!user) {

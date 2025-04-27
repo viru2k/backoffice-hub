@@ -11,9 +11,10 @@ import { NotificationModule } from './notification/notification.module';
 import { ProductModule } from './product/product.module';
 import { StockModule } from './stock/stock.module';
 import { ClientModule } from './client/client.module';
+import { SubscriptionPlanModule } from './subscription-plan/subscription-plan.module';
 
 @Module({
-  imports: [AuthModule, UserModule, SubscriptionModule, ServiceModule, AgendaModule,ProductModule ,StockModule ,ClientModule, TypeOrmModule.forRoot({
+  imports: [AuthModule, UserModule, SubscriptionModule, ServiceModule, AgendaModule,ProductModule ,StockModule ,ClientModule, SubscriptionPlanModule, TypeOrmModule.forRoot({
     type: 'mysql',
     host: 'localhost',
     port: 3307, // recuerda, redireccionamos este puerto en Docker

@@ -1,4 +1,4 @@
-import { Appointment } from "src/agenda/entities/appointment.entity";
+import { Appointment } from "./../../agenda/entities/appointment.entity";
 import { User } from "./../../user/entities/user.entity";
 import { Column, CreateDateColumn, Entity, ManyToOne, OneToMany, PrimaryGeneratedColumn, UpdateDateColumn } from "typeorm";
 
@@ -13,7 +13,7 @@ export class Client {
   @Column()
   name: string;
 
-  @Column()
+  @Column({ nullable: true })
   lastName: string;
 
   @Column({ nullable: true })

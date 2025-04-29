@@ -6,7 +6,7 @@ import {
   CreateDateColumn,
 } from 'typeorm';
 import { User } from  './../../user/entities/user.entity'//'src/user/entities/user.entity';
-import { Client } from './../..//client/entities/client.entity';
+import { Client } from './../../client/entities/client.entity';
 
 export type AppointmentStatus =
   | 'pending'
@@ -25,7 +25,7 @@ export class Appointment {
   @Column()
   title: string;
 
-  @Column()
+  @Column({ nullable: true })
 name: string;
 
 

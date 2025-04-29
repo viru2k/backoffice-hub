@@ -25,6 +25,7 @@ import { SubscriptionPlan } from './../subscription-plan/entities/subscription-p
   ],
   providers: [AuthService, JwtStrategy],
   controllers: [AuthController],
+  exports: [TypeOrmModule],
 })
 export class AuthModule {}
 

@@ -9,6 +9,6 @@ import { SubscriptionPlanController } from './subscription-plan.controller';
   imports: [TypeOrmModule.forFeature([SubscriptionPlan, SubscriptionPlanFeature])],
   controllers: [SubscriptionPlanController],
   providers: [SubscriptionPlanService],
-  exports: [SubscriptionPlanService],
+  exports: [TypeOrmModule,SubscriptionPlanService],
 })
 export class SubscriptionPlanModule {}

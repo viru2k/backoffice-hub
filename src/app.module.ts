@@ -13,6 +13,7 @@ import { StockModule } from './stock/stock.module';
 import { ClientModule } from './client/client.module';
 import { SubscriptionPlanModule } from './subscription-plan/subscription-plan.module';
 import { SeedModule } from './seed/seed.module';
+import { FullFlowExtendedSeedService } from './seed/full-flow-extended.seed';
 
 @Module({
   imports: [AuthModule, UserModule, SubscriptionModule, ServiceModule, AgendaModule,ProductModule ,StockModule ,ClientModule, SubscriptionPlanModule, SeedModule,TypeOrmModule.forRoot({
@@ -26,6 +27,6 @@ import { SeedModule } from './seed/seed.module';
     synchronize: true, // solo en desarrollo
   }), NotificationModule, ],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [AppService, FullFlowExtendedSeedService],
 })
 export class AppModule {}

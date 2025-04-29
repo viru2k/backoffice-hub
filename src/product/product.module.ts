@@ -9,5 +9,6 @@ import { ProductPriceHistory } from './entities/product-price-history.entity';
   imports: [TypeOrmModule.forFeature([Product, ProductPriceHistory])],
   providers: [ProductService],
   controllers: [ProductController],
+  exports: [TypeOrmModule],
 })
 export class ProductModule {}

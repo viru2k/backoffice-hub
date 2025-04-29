@@ -20,5 +20,6 @@ import { StockMovement } from 'src/stock/entities/stock-movement.entity';
   ],
   providers: [AgendaService, ReminderService],
   controllers: [AgendaController],
+  exports: [TypeOrmModule],
 })
 export class AgendaModule {}

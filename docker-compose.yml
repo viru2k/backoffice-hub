@@ -6,9 +6,9 @@ services:
     ports:
       - "3000:3000"
     depends_on:
-       db
+      - db
     env_file:
-       .env
+      - .env
     command: >
       sh -c "npx ts-node -r tsconfig-paths/register src/seed/full-flow-extended-runner.ts && npm run start:prod"
 
@@ -16,8 +16,10 @@ services:
     image: mysql:8.0
     restart: always
     environment:
-      MYSQL_ROOT_PASSWORD=backadmin123
-      MYSQL_DATABASE=backoffice_core
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${DB_NAME}
+      MYSQL_USER: ${DB_USER}
+      MYSQL_PASSWORD: ${DB_PASSWORD}
     ports:
       - "3306:3306"
     volumes:

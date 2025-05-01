@@ -16,16 +16,29 @@ import { SeedModule } from './seed/seed.module';
 import { FullFlowExtendedSeedService } from './seed/full-flow-extended.seed';
 
 @Module({
-  imports: [AuthModule, UserModule, SubscriptionModule, ServiceModule, AgendaModule,ProductModule ,StockModule ,ClientModule, SubscriptionPlanModule, SeedModule,TypeOrmModule.forRoot({
-    type: 'mysql',
-    host: 'localhost',
-    port: 3307, // recuerda, redireccionamos este puerto en Docker
-    username: 'backadmin',
-    password: 'backadmin123',
-    database: 'backoffice_core',
-    autoLoadEntities: true,
-    synchronize: true, // solo en desarrollo
-  }), NotificationModule, ],
+  imports: [
+    AuthModule,
+    UserModule,
+    SubscriptionModule,
+    ServiceModule,
+    AgendaModule,
+    ProductModule,
+    StockModule,
+    ClientModule,
+    SubscriptionPlanModule,
+    NotificationModule,
+    SeedModule,
+    TypeOrmModule.forRoot({
+      type: 'mysql',
+      host: process.env.DB_HOST,
+      port: parseInt(process.env.DB_PORT, 10),
+      username: process.env.DB_USER,
+      password: process.env.DB_PASSWORD,
+      database: process.env.DB_NAME,
+      autoLoadEntities: true,
+      synchronize: true,
+    }),
+  ],
   controllers: [AppController],
   providers: [AppService, FullFlowExtendedSeedService],
 })

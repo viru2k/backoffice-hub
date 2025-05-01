@@ -13,7 +13,7 @@ import { AppointmentProductLog } from 'src/agenda/entities/appointment-product-l
 import { Client } from 'src/client/entities/client.entity';
 import { Holiday } from 'src/agenda/entities/holiday.entity';
 import { AgendaConfig } from 'src/agenda/entities/agenda-config.entity';
-import * as bcrypt from 'bcrypt';
+import * as bcrypt from 'bcryptjs';
 
 @Injectable()
 export class FullFlowExtendedSeedService {

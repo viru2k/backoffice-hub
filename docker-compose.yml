@@ -1,19 +1,27 @@
 version: '3.8'
 
 services:
-  db-backoffice:
+  app:
+    build: .
+    ports:
+      - "3000:3000"
+    depends_on:
+       db
+    env_file:
+       .env
+    command: >
+      sh -c "npx ts-node -r tsconfig-paths/register src/seed/full-flow-extended-runner.ts && npm run start:prod"
+
+  db:
     image: mysql:8.0
-    container_name: db-backoffice
     restart: always
     environment:
-      MYSQL_ROOT_PASSWORD: admin123
-      MYSQL_DATABASE: backoffice_core
-      MYSQL_USER: backadmin
-      MYSQL_PASSWORD: backadmin123
+      MYSQL_ROOT_PASSWORD=backadmin123
+      MYSQL_DATABASE=backoffice_core
     ports:
-      - "3307:3306"
+      - "3306:3306"
     volumes:
-      - db_data_backoffice:/var/lib/mysql
+      - db_data:/var/lib/mysql
 
 volumes:
-  db_data_backoffice:
+  db_data:

@@ -1,4 +1,4 @@
-import { Controller, Post, Body, UseGuards, Request, Get, HttpCode, HttpStatus } from '@nestjs/common';
+import { Controller, Post, Body, UseGuards, Request, Get} from '@nestjs/common';
 import { AuthService } from './auth.service';
 //import { LocalAuthGuard } from './local-auth.guard';
 
@@ -21,7 +21,6 @@ export class AuthController {
 
   @ApiOperation({ summary: 'Login de usuario, devuelve JWT' })
   @Post('login')
-  @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Iniciar sesión' })
   async login(@Body() loginDto: LoginDto) {
     return this.authService.login(loginDto.email, loginDto.password);

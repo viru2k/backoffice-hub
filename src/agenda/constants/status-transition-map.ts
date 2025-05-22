@@ -1,11 +1,13 @@
-import { AppointmentStatus } from '../entities/appointment.entity';
+import { AppointmentStatus } from '../entities/appointment.entity'; // Asegúrate que la ruta sea correcta
 
 export const VALID_STATUS_TRANSITIONS: Record<AppointmentStatus, AppointmentStatus[]> = {
-  pending: ['confirmed', 'cancelled'],
-  confirmed: ['checked_in', 'cancelled', 'no_show'],
-  checked_in: ['in_progress', 'cancelled'],
-  in_progress: ['completed', 'cancelled'],
-  completed: [],
-  cancelled: [],
-  no_show: [],
+  [AppointmentStatus.PENDING]: [AppointmentStatus.CONFIRMED, AppointmentStatus.CANCELLED],
+  [AppointmentStatus.CONFIRMED]: [AppointmentStatus.CHECKED_IN, AppointmentStatus.CANCELLED, AppointmentStatus.NO_SHOW],
+  [AppointmentStatus.CHECKED_IN]: [AppointmentStatus.IN_PROGRESS, AppointmentStatus.CANCELLED],
+  [AppointmentStatus.IN_PROGRESS]: [AppointmentStatus.COMPLETED, AppointmentStatus.CANCELLED],
+  [AppointmentStatus.COMPLETED]: [],
+  [AppointmentStatus.CANCELLED]: [],
+  [AppointmentStatus.NO_SHOW]: [],
+    [AppointmentStatus.RESCHEDULED]: [],
+  
 };

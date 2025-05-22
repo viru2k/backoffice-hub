@@ -5,8 +5,17 @@ export class StockSummaryResponseDto {
   productId: number;
 
   @ApiProperty()
-  productNameAtTime: string;
+  productName: string; // Changed from productNameAtTime for clarity
+
+  @ApiProperty({ required: false })
+  productDescription?: string;
 
   @ApiProperty()
-  totalStock: number;
+  productCurrentPrice: number;
+
+  @ApiProperty({ enum: ['activo', 'inactivo', 'descatalogado', 'agotado', 'suspendido'] })
+  productStatus: string;
+
+  @ApiProperty()
+  availableStock: number; // Changed from totalStock for clarity
 }

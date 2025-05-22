@@ -1,4 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
+import { ProductOwnerResponseDto } from './product-owner-response.dto';
 
 export class ProductResponseDto {
   @ApiProperty()
@@ -21,4 +22,7 @@ export class ProductResponseDto {
 
   @ApiProperty()
   updatedAt: string;
+
+   @ApiProperty({ type: ProductOwnerResponseDto }) 
+  owner: ProductOwnerResponseDto;
 }

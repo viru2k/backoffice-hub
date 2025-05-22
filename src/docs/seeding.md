@@ -120,3 +120,7 @@ Usa docker-compose logs app para revisar errores del backend.
 
 Usa docker exec -it backoffice-db mysql -uroot -p para conectarte al contenedor de MySQL y verificar manualmente los datos.
 
+### RESETEAR DOCKER CUANDO SE HACEN CAMBIOS
+
+docker compose -down
+docker compose up --build

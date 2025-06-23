@@ -1,6 +1,15 @@
 import { Appointment } from "./../../agenda/entities/appointment.entity";
 import { User } from "./../../user/entities/user.entity";
-import { Column, CreateDateColumn, Entity, ManyToOne, OneToMany, PrimaryGeneratedColumn, UpdateDateColumn } from "typeorm";
+import { Column, CreateDateColumn, Entity, ManyToOne, OneToMany, PrimaryGeneratedColumn, UpdateDateColumn,  } from "typeorm";
+
+
+export enum ClientStatus {
+  ACTIVE = 'ACTIVE',
+  INACTIVE = 'INACTIVE',
+  CREATED = 'CREATED',
+  UNUSED = 'UNUSED',
+}
+
 
 @Entity()
 export class Client {
@@ -31,12 +40,25 @@ export class Client {
   @Column({ type: 'date', nullable: true })
   birthDate?: Date;
 
-  @Column({ default: 'ACTIVE' })
-  status: 'ACTIVE' | 'INACTIVE' | 'UNUSED' | 'CREATED';
-
   @Column({ type: 'text', nullable: true })
   notes?: string;
+  
 
+
+ @Column({
+    type: 'enum',
+    enum: ClientStatus, 
+    default: ClientStatus.CREATED, 
+  })
+  status: ClientStatus;
+
+  @CreateDateColumn()
+  createdAt: Date;
+
+  @UpdateDateColumn()
+  updatedAt: Date;
+
+  
   @ManyToOne(() => User, { eager: true })
   owner: User;
 
@@ -45,12 +67,4 @@ export class Client {
 
   @OneToMany(() => Appointment, (appointment) => appointment.client)
   appointments: Appointment[];
-
-
-
-  @CreateDateColumn()
-  createdAt: Date;
-
-  @UpdateDateColumn()
-  updatedAt: Date;
 }

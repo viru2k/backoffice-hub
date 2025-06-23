@@ -1,5 +1,6 @@
-import { ApiProperty } from '@nestjs/swagger';
-import { IsDateString, IsEmail, IsEnum, IsNotEmpty, IsOptional } from 'class-validator';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { IsDateString, IsEmail, IsEnum, IsNotEmpty, IsOptional, IsString } from 'class-validator';
+import { ClientStatus } from '../entities/client.entity';
 
 export class CreateClientDto {
   @ApiProperty({ example: 'Juan Pérez' })
@@ -37,12 +38,16 @@ export class CreateClientDto {
   @IsDateString()
   birthDate?: string;
 
-  @ApiProperty({ enum: ['ACTIVE', 'INACTIVE', 'CREATED'], default: 'ACTIVE' })
+  @ApiPropertyOptional({
+    enum: ClientStatus, 
+    default: ClientStatus.CREATED,
+  })
   @IsOptional()
-  @IsEnum(['ACTIVE', 'INACTIVE', 'CREATED'])
-  status?: 'ACTIVE' | 'INACTIVE' | 'CREATED' ;
+  @IsEnum(ClientStatus)
+  status?: ClientStatus; 
 
-  @ApiProperty({ example: 'Paciente con historial de alergias', required: false })
+  @ApiPropertyOptional()
   @IsOptional()
+  @IsString()
   notes?: string;
 }

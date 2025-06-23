@@ -1,12 +1,12 @@
-export const STATUS_COLORS = {
-  pending: '#f0ad4e',    // Naranja
-  confirmed: '#337ab7',  // Azul (turno normal)
-  checked_in: '#5cb85c', // Verde
-  in_progress: '#28a745',// Verde más oscuro
-  completed: '#5bc0de',  // Celeste
-  cancelled: '#777777',  // Gris
-  no_show: '#d9534f',    // Rojo (podrías usar este para sobreturno o no_show)
-  // Para sobreturno, podrías tener un estado específico o un flag,
-  // y asignarle un color, por ejemplo, rojo.
-  // Si sobreturno no es un estado, el color se manejaría con otra lógica.
+import { AppointmentStatus } from '../entities/appointment.entity';
+
+export const STATUS_COLORS: Record<AppointmentStatus, string> = {
+  [AppointmentStatus.PENDING]: '#f0ad4e',
+  [AppointmentStatus.CONFIRMED]: '#3788d8',
+  [AppointmentStatus.CHECKED_IN]: '#5cb85c',
+  [AppointmentStatus.IN_PROGRESS]: '#28a745',
+  [AppointmentStatus.COMPLETED]: '#5bc0de',
+  [AppointmentStatus.CANCELLED]: '#777777',
+  [AppointmentStatus.NO_SHOW]: '#d9534f',
+  [AppointmentStatus.RESCHEDULED]: '#8a2be2', 
 };

@@ -8,6 +8,9 @@ export class UserResponseDto {
   email: string;
 
   @ApiProperty()
+  fullName: string;
+  
+  @ApiProperty()
   isAdmin: boolean;
 
   @ApiProperty()

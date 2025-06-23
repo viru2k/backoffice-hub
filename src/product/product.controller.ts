@@ -10,14 +10,18 @@ import {
   UseGuards,
   HttpCode,
   HttpStatus,
+  Query,
+  ForbiddenException,
+  ParseIntPipe
 } from '@nestjs/common';
 import { ProductService } from './product.service';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
-import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiOperation, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { AuthGuard } from '@nestjs/passport';
 import { ProductResponseDto } from './dto/product-response.dto';
 import { Product } from './entities/product.entity'; // Importa la entidad Product
+import { UserService } from 'src/user/user.service';
 
 // Función auxiliar para mapear la entidad Product a ProductResponseDto
 function mapProductToResponseDto(product: Product): ProductResponseDto {
@@ -37,12 +41,29 @@ function mapProductToResponseDto(product: Product): ProductResponseDto {
   };
 }
 
+function mapProductToDto(product: Product): ProductResponseDto {
+  if (!product) return null;
+  return {
+    id: product.id,
+    name: product.name,
+    description: product.description,
+    status: product.status,
+    currentPrice: product.currentPrice,
+    createdAt: product.createdAt.toISOString(),
+    updatedAt: product.updatedAt.toISOString(),
+    owner: {
+      id: product.owner.id,
+      fullName: product.owner.fullName,
+    },
+  };
+}
+
 @ApiTags('products') // Etiqueta para Swagger
 @ApiBearerAuth() // Indica que se requiere autenticación Bearer (JWT)
 @UseGuards(AuthGuard('jwt')) // Protege todas las rutas de este controlador con el AuthGuard de JWT
 @Controller('products') // Define la ruta base para este controlador
 export class ProductController {
-  constructor(private readonly productService: ProductService) {}
+  constructor(private readonly productService: ProductService, private readonly userService: UserService) {}
 
   @Post() // Define una ruta POST para crear un producto
   @ApiOperation({ summary: 'Crear un nuevo producto' }) // Descripción para Swagger
@@ -54,24 +75,60 @@ export class ProductController {
     return mapProductToResponseDto(productEntity);
   }
 
-  @Get() // Define una ruta GET para listar productos
-  @ApiOperation({ summary: 'Listar productos del usuario' })
-  @ApiResponse({ status: 200, description: 'Lista de productos.', type: [ProductResponseDto] })
-  async findAll(@Request() req): Promise<ProductResponseDto[]> {
-    // Llama al servicio para obtener todos los productos del usuario autenticado (req.user.id)
-    const products = await this.productService.findAll(req.user.id);
-    // Mapea cada entidad Product a ProductResponseDto
-    return products.map(mapProductToResponseDto);
+@Get()
+  @ApiOperation({ summary: 'Listar productos (admin puede ver los de un sub-usuario)' })
+  @ApiQuery({ name: 'userId', required: false, type: Number, description: 'Admin: ID del usuario cuyos productos se quieren ver' })
+  @ApiResponse({ status: 200, type: [ProductResponseDto] })
+  async findAll(
+    @Request() req,
+    @Query('userId') userId?: string,
+  ): Promise<ProductResponseDto[]> {
+    const requestingUser = req.user;
+    // Si no se provee un userId en la query, el objetivo es el propio usuario que hace la petición.
+    const targetUserId = userId ? parseInt(userId, 10) : requestingUser.id;
+
+    // Lógica de permisos
+    if (targetUserId !== requestingUser.id) {
+      if (!requestingUser.isAdmin) {
+        throw new ForbiddenException('No tienes permisos para ver los productos de otros usuarios.');
+      }
+      const isMember = await this.userService.isUserInAdminGroup(targetUserId, requestingUser.id);
+      if (!isMember) {
+        throw new ForbiddenException('El usuario especificado no pertenece a su grupo.');
+      }
+    }
+
+    // LLAMADA AL SERVICIO CORREGIDA: se pasan 2 argumentos.
+    const products = await this.productService.findAll(requestingUser, targetUserId);
+    return products.map(mapProductToDto);
   }
 
-  @Get(':id') // Define una ruta GET para obtener un producto por su ID
-  @ApiOperation({ summary: 'Obtener detalles de un producto' })
-  @ApiResponse({ status: 200, description: 'Detalles del producto.', type: ProductResponseDto })
-  async findOne(@Param('id') id: number, @Request() req): Promise<ProductResponseDto> {
-    // Llama al servicio para obtener un producto específico del usuario autenticado
-    const productEntity = await this.productService.findOne(id, req.user.id);
-    // Mapea la entidad Product a ProductResponseDto
-    return mapProductToResponseDto(productEntity);
+  @Get(':id')
+  @ApiOperation({ summary: 'Obtener detalles de un producto (admin puede ver los de un sub-usuario)' })
+  @ApiQuery({ name: 'userId', required: false, type: Number, description: 'Admin: ID del usuario dueño del producto' })
+  @ApiResponse({ status: 200, type: ProductResponseDto })
+  async findOne(
+    @Param('id', ParseIntPipe) id: number,
+    @Request() req,
+    @Query('userId') userId?: string,
+  ): Promise<ProductResponseDto> {
+    const requestingUser = req.user;
+    const targetUserId = userId ? parseInt(userId, 10) : requestingUser.id;
+
+    // Lógica de permisos
+    if (targetUserId !== requestingUser.id) {
+      if (!requestingUser.isAdmin) {
+        throw new ForbiddenException('No tienes permisos para ver los productos de otros usuarios.');
+      }
+      const isMember = await this.userService.isUserInAdminGroup(targetUserId, requestingUser.id);
+      if (!isMember) {
+        throw new ForbiddenException('El usuario especificado no pertenece a su grupo.');
+      }
+    }
+
+    // LLAMADA AL SERVICIO CORREGIDA: se pasan 3 argumentos.
+    const product = await this.productService.findOne(id, requestingUser, targetUserId);
+    return mapProductToDto(product);
   }
 
   @Patch(':id') // Define una ruta PATCH para actualizar un producto por su ID

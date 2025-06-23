@@ -16,70 +16,71 @@ export class ProductService {
     private readonly priceHistoryRepo: Repository<ProductPriceHistory>,
   ) {}
 
-  async create(dto: CreateProductDto, user: User): Promise<Product> { // Return Product
+async create(dto: CreateProductDto, user: User): Promise<Product> {
     const productEntity = this.productRepo.create({
       ...dto,
-      owner: user, // Ensure owner is the User entity
-      user: user, // Assuming 'user' relationship also needs to be set
+      owner: user,
+      user: user, // Asumiendo que ambas relaciones apuntan al mismo usuario
       currentPrice: dto.price,
     });
     const savedProduct = await this.productRepo.save(productEntity);
-    return savedProduct; // Return the saved Product entity
+    return this.findOne(savedProduct.id, user, user.id); // Re-fetch para cargar relaciones
   }
 
-  async findAll(userId: number): Promise<Product[]> { // Return array of Product
-    return this.productRepo.find({ 
-      where: { owner: { id: userId } },
-      relations: ['owner']
+async findAll(requestingUser: User, targetUserId: number): Promise<Product[]> {
+    return this.productRepo.find({
+      where: { owner: { id: targetUserId } },
+      relations: ['owner'],
     });
   }
 
-  async findOne(id: number, userId: number): Promise<Product> { // Return Product entity
+async findOne(productId: number, requestingUser: User, targetUserId: number): Promise<Product> {
     const product = await this.productRepo.findOne({
-      where: { id, owner: { id: userId } },
-      relations: ['owner'], 
+      where: { id: productId, owner: { id: targetUserId } },
+      relations: ['owner'],
     });
 
     if (!product) {
-      throw new NotFoundException('Producto no encontrado');
+      throw new NotFoundException('Producto no encontrado o no pertenece al usuario especificado.');
     }
-    return product; // Return the Product entity
+    return product;
   }
 
-  async update(id: number, dto: UpdateProductDto, userId: number): Promise<Product> { 
-    const product = await this.findOne(id, userId); 
-  
+async update(id: number, dto: UpdateProductDto, requestingUser: User): Promise<Product> {
+    // Para actualizar, el usuario objetivo es siempre el mismo que hace la petición.
+    const product = await this.findOne(id, requestingUser, requestingUser.id); // <-- LLAMADA CORREGIDA
+
     if (dto.price && dto.price !== product.currentPrice) {
       await this.priceHistoryRepo.save({
-        product, 
+        product,
         price: dto.price,
-   
       });
-  
-      product.currentPrice = dto.price; 
+      product.currentPrice = dto.price;
     }
+
     const { price, ...otherDtoProps } = dto;
     Object.assign(product, otherDtoProps);
-  
-    const updatedProduct = await this.productRepo.save(product);
-    return this.findOne(updatedProduct.id, userId);
+
+    await this.productRepo.save(product);
+    return this.findOne(id, requestingUser, requestingUser.id); // Re-fetch para devolver el estado actualizado
   }
   
 
-  async remove(id: number, userId: number): Promise<Product> {
-    const product = await this.findOne(id, userId); 
-    if (!product) { // 
-        throw new NotFoundException('Producto no encontrado para eliminar');
-    }
+ async remove(id: number, requestingUser: User): Promise<Product> {
+    // Para eliminar, el usuario objetivo es siempre el mismo que hace la petición.
+    const product = await this.findOne(id, requestingUser, requestingUser.id); // <-- LLAMADA CORREGIDA
     return this.productRepo.remove(product);
   }
 
-  async toggleStatus(id: number, userId: number): Promise<Product> { 
-    const product = await this.findOne(id, userId); 
-  
+  async toggleStatus(id: number, requestingUser: User): Promise<Product> {
+    // Para cambiar el estado, el usuario objetivo es siempre el mismo que hace la petición.
+    const product = await this.findOne(id, requestingUser, requestingUser.id); // <-- LLAMADA CORREGIDA
+
     product.status = product.status === 'activo' ? 'inactivo' : 'activo';
-  
+
     const savedProduct = await this.productRepo.save(product);
-    return this.findOne(savedProduct.id, userId);
+    return this.findOne(savedProduct.id, requestingUser, requestingUser.id); // Re-fetch para devolver el estado actualizado
   }
+
+  
 }

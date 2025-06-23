@@ -1,4 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
+import { ClientStatus } from '../entities/client.entity';
+
 
 export class ClientResponseDto {
   @ApiProperty()
@@ -28,8 +30,12 @@ export class ClientResponseDto {
   @ApiProperty({ required: false })
   birthDate?: string;
 
-  @ApiProperty()
-  status: 'ACTIVE'| 'INACTIVE'| 'CREATED';
+ @ApiProperty({ 
+    enum: ClientStatus, 
+    description: 'Estado actual del cliente',
+    example: ClientStatus.ACTIVE,
+  })
+  status: ClientStatus;
 
   @ApiProperty({ required: false })
   notes?: string;

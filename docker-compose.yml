@@ -9,6 +9,8 @@ services:
       - db
     env_file:
       - .env
+    environment:
+      DB_HOST: db
     command: >
       sh -c "npx ts-node -r tsconfig-paths/register src/seed/full-flow-extended-runner.ts && npm run start:prod"
 

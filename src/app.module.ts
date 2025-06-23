@@ -30,7 +30,7 @@ import { FullFlowExtendedSeedService } from './seed/full-flow-extended.seed';
     SeedModule,
     TypeOrmModule.forRoot({
       type: 'mysql',
-      host: process.env.DB_HOST || 'db',
+      host: process.env.DB_HOST,
       port: parseInt(process.env.DB_PORT, 10) || 3306,
       username: process.env.DB_USER || 'root',
       password: process.env.DB_PASSWORD || 'admin123',

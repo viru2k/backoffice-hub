@@ -10,13 +10,12 @@ import { ProductPriceHistory } from './../product/entities/product-price-history
 import { StockMovement, StockMovementType } from 'src/stock/entities/stock-movement.entity';
 import { Appointment, AppointmentStatus } from 'src/agenda/entities/appointment.entity';
 import { AppointmentProductLog } from 'src/agenda/entities/appointment-product-log.entity';
-import { Client, ClientStatus } from 'src/client/entities/client.entity'; // Importar ClientStatus
+import { Client, ClientStatus } from 'src/client/entities/client.entity';
 import { Holiday } from 'src/agenda/entities/holiday.entity';
 import { AgendaConfig } from 'src/agenda/entities/agenda-config.entity';
 import * as bcrypt from 'bcryptjs';
 import { addMinutes } from 'date-fns';
 
-// Constante de colores para el seed, usando el enum AppointmentStatus
 const STATUS_COLORS_SEED: Record<AppointmentStatus, string> = {
   [AppointmentStatus.PENDING]: '#f0ad4e',
   [AppointmentStatus.CONFIRMED]: '#3788d8',
@@ -25,7 +24,7 @@ const STATUS_COLORS_SEED: Record<AppointmentStatus, string> = {
   [AppointmentStatus.COMPLETED]: '#5bc0de',
   [AppointmentStatus.CANCELLED]: '#777777',
   [AppointmentStatus.NO_SHOW]: '#d9534f',
-   [AppointmentStatus.RESCHEDULED]: '#8a2be2',
+  [AppointmentStatus.RESCHEDULED]: '#8a2be2',
 };
 
 @Injectable()
@@ -72,23 +71,20 @@ export class FullFlowExtendedSeedService {
     const starterPlan = await this.planRepo.findOneBy({ name: 'Starter' });
     const professionalPlan = await this.planRepo.findOneBy({ name: 'Professional' });
 
-    // 2. Crear Usuarios principales y Sub-usuarios
+    // 2. Crear Usuarios
     console.log('🌱 Creando usuarios...');
     const hashedPassword = await bcrypt.hash('12345678', 10);
     const peluqueriaAdmin = await this.userRepo.save({ email: 'peluqueria@glamour.com', password: hashedPassword, name: 'Glamour', lastName: 'Peluquería', isAdmin: true, isActive: true });
     const oftalmologiaAdmin = await this.userRepo.save({ email: 'oftalmologia@vision.com', password: hashedPassword, name: 'Clínica', lastName: 'Visión', isAdmin: true, isActive: true });
-
-    // Crear sub-usuario para la peluquería
     const peluqueroSubUser = await this.userRepo.save({ email: 'estilista@glamour.com', password: hashedPassword, name: 'Estilista', lastName: 'Uno', owner: peluqueriaAdmin, isAdmin: false, isActive: true });
 
-    // Asignar suscripciones
     await this.subscriptionRepo.save({ user: peluqueriaAdmin, subscriptionPlan: starterPlan, startDate: new Date(), endDate: new Date(new Date().setFullYear(new Date().getFullYear() + 1)), status: 'active' });
     await this.subscriptionRepo.save({ user: oftalmologiaAdmin, subscriptionPlan: professionalPlan, startDate: new Date(), endDate: new Date(new Date().setFullYear(new Date().getFullYear() + 1)), status: 'active' });
 
     // 3. Crear Configuración de Agenda
     console.log('🌱 Creando configuración de agenda...');
     const configPeluqueria = await this.agendaConfigRepo.save({ user: peluqueriaAdmin, startTime: '09:00', endTime: '18:00', slotDuration: 30, workingDays: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'] });
-    await this.agendaConfigRepo.save({ user: peluqueroSubUser, startTime: '09:00', endTime: '18:00', slotDuration: 30, workingDays: ['Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'] }); // Config para el sub-usuario
+    await this.agendaConfigRepo.save({ user: peluqueroSubUser, startTime: '09:00', endTime: '18:00', slotDuration: 30, workingDays: ['Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'] });
     const configOftalmologia = await this.agendaConfigRepo.save({ user: oftalmologiaAdmin, startTime: '08:00', endTime: '17:00', slotDuration: 15, workingDays: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'], overbookingAllowed: true });
 
     // 4. Crear Productos
@@ -97,25 +93,25 @@ export class FullFlowExtendedSeedService {
     const tinte = await this.productRepo.save({ name: 'Tinte Color Intenso', owner: peluqueriaAdmin, user: peluqueriaAdmin, currentPrice: 20, status: 'activo' });
     const lentes = await this.productRepo.save({ name: 'Lentes de Contacto', owner: oftalmologiaAdmin, user: oftalmologiaAdmin, currentPrice: 50, status: 'activo' });
 
-    // 5. Crear Stock inicial
+    // 5. Crear Stock inicial (CORREGIDO)
     console.log('🌱 Creando stock...');
-    await this.stockRepo.save({ product: shampoo, user: peluqueriaAdmin, quantity: 100, type: StockMovementType.IN, reason: 'Carga inicial' });
-    await this.stockRepo.save({ product: tinte, user: peluqueriaAdmin, quantity: 50, type: StockMovementType.IN, reason: 'Carga inicial' });
-    await this.stockRepo.save({ product: lentes, user: oftalmologiaAdmin, quantity: 200, type: StockMovementType.IN, reason: 'Carga inicial' });
+    await this.stockRepo.save({ product: shampoo, user: peluqueriaAdmin, quantity: 100, type: StockMovementType.IN, reason: 'Carga inicial', productNameAtTime: shampoo.name, date: new Date() });
+    await this.stockRepo.save({ product: tinte, user: peluqueriaAdmin, quantity: 50, type: StockMovementType.IN, reason: 'Carga inicial', productNameAtTime: tinte.name, date: new Date() });
+    await this.stockRepo.save({ product: lentes, user: oftalmologiaAdmin, quantity: 200, type: StockMovementType.IN, reason: 'Carga inicial', productNameAtTime: lentes.name, date: new Date() });
 
-    // 6. Crear Clientes (USANDO EL ENUM ClientStatus)
+    // 6. Crear Clientes
     console.log('🌱 Creando clientes...');
     const cliente1 = await this.clientRepo.save(this.clientRepo.create({ fullname: 'Ana García', name: 'Ana', lastName: 'García', email: 'ana.garcia@example.com', phone: '555-1234', owner: peluqueriaAdmin, user: peluqueriaAdmin, status: ClientStatus.ACTIVE }));
     const paciente1 = await this.clientRepo.save(this.clientRepo.create({ fullname: 'Carlos López', name: 'Carlos', lastName: 'López', email: 'carlos.lopez@example.com', phone: '555-5678', owner: oftalmologiaAdmin, user: oftalmologiaAdmin, status: ClientStatus.ACTIVE }));
 
-    // 7. Crear Citas (Appointments) (USANDO EL ENUM AppointmentStatus)
+    // 7. Crear Citas
     console.log('🌱 Creando citas...');
     const now = new Date();
     const corteCabello = await this.appointmentRepo.save(this.appointmentRepo.create({
       title: 'Corte de Cabello', description: 'Corte y peinado para Ana',
       startDateTime: new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 10, 0, 0),
       endDateTime: addMinutes(new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 10, 0, 0), configPeluqueria.slotDuration),
-      professional: peluqueroSubUser, // Cita asignada al sub-usuario estilista
+      professional: peluqueroSubUser,
       client: cliente1,
       status: AppointmentStatus.CONFIRMED,
       color: STATUS_COLORS_SEED[AppointmentStatus.CONFIRMED],
@@ -135,7 +131,7 @@ export class FullFlowExtendedSeedService {
       title: 'Peinado (Cancelado)', description: 'Peinado para boda',
       startDateTime: new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 15, 0, 0), 
       endDateTime: addMinutes(new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 15, 0, 0), 60),
-      professional: peluqueriaAdmin, // Cita asignada al admin
+      professional: peluqueriaAdmin,
       client: cliente1,
       status: AppointmentStatus.CANCELLED,
       color: STATUS_COLORS_SEED[AppointmentStatus.CANCELLED],

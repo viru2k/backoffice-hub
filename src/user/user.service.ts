@@ -82,6 +82,11 @@ async createSubUser(dto: CreateSubUserDto, owner: User): Promise<User> {
     return this.userRepository.save(userToUpdate);
   }
 
+   async createUser(data: Partial<User>): Promise<User> {
+    const newUser = this.userRepository.create(data);
+    return this.userRepository.save(newUser);
+  }
+
 
     async findByEmail(email: string): Promise<User> {
         return this.userRepository.findOne({ where: { email } });

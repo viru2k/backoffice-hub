@@ -1,4 +1,4 @@
-import { Injectable, UnauthorizedException, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, UnauthorizedException, BadRequestException, Logger } from '@nestjs/common'; // Cambiar LoggerService por Logger
 import { JwtService } from '@nestjs/jwt';
 import { UserService } from './../user/user.service';
 import * as bcrypt from 'bcryptjs';
@@ -11,6 +11,10 @@ import { RegisterUserDto } from './dto/register-user.dto';
 
 @Injectable()
 export class AuthService {
+  // --- CORRECCIÓN DEL LOGGER ---
+  // Así se instancia el logger de NestJS.
+  private readonly logger = new Logger(AuthService.name);
+
   constructor(
     private readonly userService: UserService,
     private readonly jwtService: JwtService,
@@ -18,93 +22,93 @@ export class AuthService {
     private readonly subscriptionRepo: Repository<Subscription>,
     @InjectRepository(SubscriptionPlan)
     private readonly subscriptionPlanRepo: Repository<SubscriptionPlan>,
-    @InjectRepository(User)
-    private readonly userRepo: Repository<User>,
+    // Ya no es necesario inyectar UserRepository ni LoggerService aquí
   ) {}
 
-  async register(dto: RegisterUserDto) {
-    const hashedPassword = await bcrypt.hash(dto.password, 10);
+  async register(registerUserDto: RegisterUserDto) {
+    // --- CORRECCIÓN DEL DTO ---
 
-    const now = new Date();
-    const end = new Date(now);
-    if (dto.subscriptionType === 'monthly') {
-      end.setMonth(end.getMonth() + 1);
-    } else if (dto.subscriptionType === 'semester') {
-      end.setMonth(end.getMonth() + 6);
-    } else if (dto.subscriptionType === 'annual') {
-      end.setFullYear(end.getFullYear() + 1);
-    } else {
-      throw new BadRequestException('Invalid subscription type');
+    const { email, password, fullName, subscriptionType } = registerUserDto;
+    
+    const existingUser = await this.userService.findByEmail(email);
+    if (existingUser) {
+      throw new UnauthorizedException('El correo electrónico ya está en uso.');
     }
     
-
-    // Buscar el SubscriptionPlan correspondiente
-    const planName = this.getPlanName(dto.subscriptionType);
-    const subscriptionPlan = await this.subscriptionPlanRepo.findOne({
-      where: { name: planName },
-    });
-
-    if (!subscriptionPlan) {
-      throw new NotFoundException(`Subscription plan ${planName} not found`);
+    // El plan se obtiene a partir del 'subscriptionType'
+    const planName = this.getPlanName(subscriptionType);
+    const plan = await this.subscriptionPlanRepo.findOneBy({ name: planName });
+    if (!plan) {
+      throw new BadRequestException('Tipo de suscripción no válido.');
     }
 
-    // Crear la suscripción asociada al plan
+    const hashedPassword = await bcrypt.hash(password, 10);
+    
+    // --- CORRECCIÓN DEL MÉTODO DE CREACIÓN ---
+    // UserService no tiene un método 'create'. Creamos el usuario aquí
+    // y lo guardamos a través del servicio o directamente si el servicio no lo expone.
+    // Lo ideal es que UserService tenga un método para esto. Vamos a asumir que lo añadimos.
+    // (Ver el cambio necesario en UserService más abajo)
+    const newUser = await this.userService.createUser({
+      email,
+      password: hashedPassword,
+      fullName: fullName, 
+      lastName: '', // El DTO no provee lastName, lo dejamos vacío o lo ajustamos
+      isAdmin: true, // El primer usuario registrado es siempre admin de su cuenta
+    });
+
     const subscription = this.subscriptionRepo.create({
-      subscriptionPlan: subscriptionPlan,
-      startDate: now,
-      endDate: end,
+      user: newUser,
+      subscriptionPlan: plan,
+      startDate: new Date(),
+      endDate: new Date(new Date().setMonth(new Date().getMonth() + 1)),
       status: 'active',
     });
-
     await this.subscriptionRepo.save(subscription);
 
-    // Crear el usuario principal
-    const user = this.userRepo.create({
-      email: dto.email,
-      password: hashedPassword,
-      fullName: dto.fullName,
-      isAdmin: true,
-      isActive: true,
-      subscriptions: [subscription], // <<< ahora sí plural
-    });
-
-    await this.userRepo.save(user);
-
-    // Actualizar la suscripción con el usuario
-    subscription.user = user;
-    await this.subscriptionRepo.save(subscription);
-
-    // Crear el JWT
-    const payload = { email: user.email, sub: user.id, isAdmin: user.isAdmin };
+    const payload = { sub: newUser.id, username: newUser.email, isAdmin: newUser.isAdmin };
     return {
       access_token: this.jwtService.sign(payload),
+      user: newUser, // Devolver el usuario creado
     };
   }
 
+  // Este método privado traduce el tipo de suscripción del DTO al nombre del Plan
   private getPlanName(subscriptionType: string): string {
     if (subscriptionType === 'monthly') return 'Starter';
     if (subscriptionType === 'semester') return 'Professional';
-    if (subscriptionType === 'annual') return 'Enterprise';
-    throw new Error('Invalid subscription type');
+    if (subscriptionType === 'annual') return 'Enterprise'; // Asumiendo que existe un plan Enterprise
+    throw new BadRequestException('Tipo de suscripción inválido');
   }
 
-  async validateUser(email: string, password: string) {
+  async validateUser(email: string, pass: string): Promise<any> {
     const user = await this.userService.findByEmail(email);
+
+    this.logger.debug(`Validando usuario: ${email}`);
     if (!user) {
-      throw new UnauthorizedException('Usuario no encontrado');
+        return null;
     }
+    this.logger.debug(`Usuario encontrado. ID: ${user.id}, isActive: ${user.isActive}`);
 
-    const isPasswordValid = await bcrypt.compare(password, user.password);
-    if (!isPasswordValid) {
-      throw new UnauthorizedException('Contraseña incorrecta');
+    const isMatch = await bcrypt.compare(pass, user.password);
+
+    if (isMatch && user.isActive) {
+      this.logger.log(`Validación exitosa para usuario activo: ${email}`);
+      const { password, ...result } = user;
+      return result;
     }
-
-    return user;
+    
+    if (isMatch && !user.isActive) {
+      this.logger.warn(`Intento de login para usuario INACTIVO: ${email}`);
+      return null; 
+    }
+    
+    this.logger.warn(`Contraseña incorrecta para el usuario: ${email}`);
+    return null;
   }
 
-  async login(email: string, password: string) {
-    const user = await this.validateUser(email, password);
-    const payload = { sub: user.id, email: user.email };
+  async login(user: any) {
+    const payload = { username: user.email, sub: user.id, isAdmin: user.isAdmin };
     return {
       access_token: this.jwtService.sign(payload),
     };

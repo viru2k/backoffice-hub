@@ -10,20 +10,22 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       ignoreExpiration: false,
-      secretOrKey: jwtConstants.secret,
+      secretOrKey: jwtConstants.secret, 
     });
   }
 
-async validate(payload: any) {
-    // El servicio ahora está disponible a través de this.userService
+ async validate(payload: any) {
+    // Este método solo se ejecuta si la firma del token es válida
     const user = await this.userService.findById(payload.sub);
     if (!user) {
       throw new UnauthorizedException();
     }
-    if (!user.isActive) { // La comprobación de usuario activo
+    // La comprobación de 'isActive' también se hace aquí para cada petición a una ruta protegida
+    if (!user.isActive) {
       throw new UnauthorizedException('La cuenta de usuario está deshabilitada.');
     }
-    return user;
+    const { password, ...result } = user; // No devolver la contraseña
+    return result;
   }
 
   

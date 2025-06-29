@@ -14,6 +14,7 @@ import { StockMovement } from 'src/stock/entities/stock-movement.entity';
 // Importar las entidades User y Client
 import { User } from 'src/user/entities/user.entity';
 import { Client } from 'src/client/entities/client.entity';
+import { UserModule } from 'src/user/user.module';
 
 @Module({
   imports: [
@@ -28,6 +29,7 @@ import { Client } from 'src/client/entities/client.entity';
       Client, 
     ]),
     NotificationModule, 
+     UserModule,
   ],
   providers: [AgendaService, ReminderService],
   controllers: [AgendaController],

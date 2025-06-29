@@ -10,7 +10,8 @@ import {
   Request,
   UseGuards,
   ParseIntPipe, // Para convertir parámetros de ruta a números
-  HttpStatus,   // Para códigos de estado HTTP
+  HttpStatus,
+  ForbiddenException,   // Para códigos de estado HTTP
 } from '@nestjs/common';
 import { AgendaService } from './agenda.service';
 import { CreateAppointmentDto } from './dto/create-appointment.dto';
@@ -37,7 +38,9 @@ import { AppointmentProductLogResponseDto } from './dto/appointment-product-log-
 
 import { Appointment, AppointmentStatus } from './entities/appointment.entity';
 import { STATUS_COLORS } from './constants/colors';
-
+import { UserService } from 'src/user/user.service';
+import { PermissionsGuard } from 'src/common/guards/permissions.guard'; 
+import { Permissions } from 'src/common/decorators/permissions.decorator';
 
 
 // Esta función convierte la entidad Appointment a AppointmentResponseDto
@@ -85,12 +88,13 @@ function mapAppointmentToResponseDto(appointment: Appointment): AppointmentRespo
 
 @ApiTags('agenda')
 @ApiBearerAuth()
-@UseGuards(AuthGuard('jwt'))
+@UseGuards(AuthGuard('jwt'), PermissionsGuard)
 @Controller('agenda')
 export class AgendaController {
-  constructor(private readonly agendaService: AgendaService) {}
+  constructor(private readonly agendaService: AgendaService, private readonly userService: UserService) {}
 
   @Post()
+  @Permissions('canManageAgenda')
   @ApiOperation({ summary: 'Crear un turno manual' })
   @ApiResponse({ status: HttpStatus.CREATED, description: 'Turno creado exitosamente.', type: AppointmentResponseDto })
   async create(@Body() dto: CreateAppointmentDto, @Request() req): Promise<AppointmentResponseDto> {
@@ -99,6 +103,7 @@ export class AgendaController {
   }
 
   @Patch(':id') // Ruta para actualizar un turno
+  @Permissions('canManageAgenda')
   @ApiOperation({ summary: 'Actualizar un turno existente' })
   @ApiResponse({ status: HttpStatus.OK, description: 'Turno actualizado exitosamente.', type: AppointmentResponseDto })
   @ApiResponse({ status: HttpStatus.NOT_FOUND, description: 'Turno no encontrado.' })
@@ -112,6 +117,7 @@ export class AgendaController {
   }
 
   @Post('book')
+  @Permissions('canManageAgenda')
   @ApiOperation({ summary: 'Reservar un turno en un slot disponible (cliente o profesional)' })
   @ApiResponse({ status: HttpStatus.CREATED, description: 'Turno reservado exitosamente.', type: AppointmentResponseDto })
   async book(@Body() dto: BookAppointmentDto, @Request() req): Promise<AppointmentResponseDto> {
@@ -137,12 +143,23 @@ export class AgendaController {
     @Query('status') status?: AppointmentStatus,
     @Query('professionalId') professionalId?: number, // professionalId como opcional
   ): Promise<AppointmentResponseDto[]> {
+      const requestingUser = req.user;
     const targetProfessionalId = professionalId || req.user.id; // Usar el ID del query o el del usuario logueado
+    if (targetProfessionalId) {
+      if (!requestingUser.isAdmin) {
+        throw new ForbiddenException('No tienes permisos para ver la agenda de otros usuarios.');
+      }
+      const isMember = await this.userService.isUserInAdminGroup(targetProfessionalId, requestingUser.id);
+      if (!isMember) {
+        throw new ForbiddenException('El usuario especificado no pertenece a su grupo.');
+      }
     const appointments = await this.agendaService.getAppointments(
       { date, from, to, status, professionalId: targetProfessionalId }, // Pasar professionalId al servicio
       req.user.id, // requestingUserId, para posible lógica de permisos en el servicio
     );
     return appointments.map(mapAppointmentToResponseDto);
+  }
+
   }
 
 @Get('available')
@@ -156,6 +173,17 @@ async getAvailable(
   @Query('professionalId') professionalIdQuery?: number,
 ): Promise<AvailableSlotResponseDto> { 
   const targetProfessionalId = professionalIdQuery || req.user.id;
+  const requestingUser = req.user;
+    const targetUserId = professionalIdQuery || requestingUser.id;
+     if (targetUserId !== requestingUser.id) {
+      if (!requestingUser.isAdmin) {
+        throw new ForbiddenException('No tienes permisos para ver la disponibilidad de otros usuarios.');
+      }
+      const isMember = await this.userService.isUserInAdminGroup(targetUserId, requestingUser.id);
+      if (!isMember) {
+        throw new ForbiddenException('El usuario especificado no pertenece a su grupo.');
+      }
+    }
   // El servicio ya devuelve la estructura correcta que coincide con el DTO contenedor.
   return this.agendaService.getAvailableSlots(date, targetProfessionalId);
 }
@@ -188,6 +216,7 @@ async getAvailable(
   }
 
   @Patch('config')
+  @Permissions('canManageAgenda')
   @ApiOperation({ summary: 'Actualizar configuración de agenda del profesional actual (o especificado)' })
   @ApiQuery({ name: 'professionalId', required: false, type: Number, description: 'ID del profesional a configurar (admin)'})
   @ApiResponse({ status: HttpStatus.OK, type: AgendaConfigResponseDto })
@@ -203,6 +232,7 @@ async getAvailable(
   }
 
   @Post('holiday')
+  @Permissions('canManageAgenda')
   @ApiOperation({ summary: 'Agregar feriado para un profesional' })
   @ApiQuery({ name: 'professionalId', required: false, type: Number, description: 'ID del profesional (admin)'})
   @ApiResponse({ status: HttpStatus.CREATED, type: HolidayResponseDto }) // Asegúrate que HolidayResponseDto exista
@@ -240,12 +270,10 @@ async getAvailable(
     }));
   }
 
-  @Get('summary')
-  @ApiOperation({ summary: 'Resumen de citas por estado y día para un profesional' })
-  @ApiQuery({ name: 'from', required: true, type: String, description: 'Fecha de inicio (YYYY-MM-DD)' })
-  @ApiQuery({ name: 'to', required: true, type: String, description: 'Fecha de fin (YYYY-MM-DD)' })
-  @ApiQuery({ name: 'professionalId', required: false, type: Number, description: 'ID del profesional (admin)'})
-  @ApiResponse({ status: HttpStatus.OK, type: AppointmentSummaryResponseDto })
+
+
+  
+
 @Get('summary')
   @ApiOperation({ summary: 'Resumen de citas por estado y día para un profesional' })
   @ApiQuery({ name: 'from', required: true, type: String, description: 'Fecha de inicio (YYYY-MM-DD)' })
@@ -309,6 +337,7 @@ async getAvailable(
 
   // Endpoint para registrar productos usados en una cita
   @Patch(':id/products-used')
+  @Permissions('canManageAgenda')
   @ApiOperation({ summary: 'Registrar productos utilizados en la cita' })
   @ApiResponse({ status: HttpStatus.OK, description: 'Productos registrados correctamente.' })
   @ApiResponse({ status: HttpStatus.NOT_FOUND, description: 'Cita no encontrada.'})
@@ -342,6 +371,7 @@ async getAvailable(
 
   // Podrías añadir un endpoint DELETE para cancelar/eliminar turnos si es necesario
   @Delete(':id')
+  @Permissions('canManageAgenda')
   @ApiOperation({ summary: 'Eliminar un turno (o marcarlo como cancelado)' })
   @ApiResponse({ status: HttpStatus.OK, description: 'Turno eliminado o cancelado.', type: AppointmentResponseDto })
   @ApiResponse({ status: HttpStatus.NOT_FOUND, description: 'Turno no encontrado.' })

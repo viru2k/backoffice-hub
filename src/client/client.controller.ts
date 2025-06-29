@@ -22,6 +22,8 @@ import {
 import { ClientResponseDto } from './dto/client-response.dto';
 import { Client } from './entities/client.entity';
 import { UserService } from 'src/user/user.service';
+import { PermissionsGuard } from 'src/common/guards/permissions.guard'; 
+import { Permissions } from 'src/common/decorators/permissions.decorator';
   
 function mapClientToDto(client: Client): ClientResponseDto {
   if (!client) return null;
@@ -41,12 +43,13 @@ function mapClientToDto(client: Client): ClientResponseDto {
 
   @ApiTags('clients')
   @ApiBearerAuth()
-  @UseGuards(AuthGuard('jwt'))
+  @UseGuards(AuthGuard('jwt'),PermissionsGuard)
   @Controller('clients')
   export class ClientController {
     constructor(private readonly clientService: ClientService,  private readonly userService: UserService) {}
   
  @Post()
+ @Permissions('canManageClients')
   @ApiOperation({ summary: 'Crear un nuevo cliente' })
   @ApiResponse({ status: 201, type: ClientResponseDto })
   async create(@Body() createClientDto: CreateClientDto, @Request() req): Promise<ClientResponseDto> {
@@ -54,7 +57,7 @@ function mapClientToDto(client: Client): ClientResponseDto {
     return mapClientToDto(client);
   }
   
-    @Get()
+  @Get()
   @ApiOperation({ summary: 'Listar clientes (admin puede ver los de un sub-usuario)' })
   @ApiQuery({ name: 'userId', required: false, type: Number, description: 'Admin: ID del usuario cuyos clientes se quieren ver' })
   @ApiResponse({ status: 200, type: [ClientResponseDto] })
@@ -80,9 +83,9 @@ function mapClientToDto(client: Client): ClientResponseDto {
   }
   
 @Get(':id')
-  @ApiOperation({ summary: 'Obtener detalles de un cliente (admin puede ver los de un sub-usuario)' })
-  @ApiQuery({ name: 'userId', required: false, type: Number, description: 'Admin: ID del usuario dueño del cliente' })
-  @ApiResponse({ status: 200, type: ClientResponseDto })
+@ApiOperation({ summary: 'Obtener detalles de un cliente (admin puede ver los de un sub-usuario)' })
+@ApiQuery({ name: 'userId', required: false, type: Number, description: 'Admin: ID del usuario dueño del cliente' })
+@ApiResponse({ status: 200, type: ClientResponseDto })
   async findOne(
     @Param('id', ParseIntPipe) id: number,
     @Request() req,
@@ -105,15 +108,17 @@ function mapClientToDto(client: Client): ClientResponseDto {
     return mapClientToDto(client);
   }
   
- @Patch(':id')
-  @ApiOperation({ summary: 'Actualizar un cliente' })
-  @ApiResponse({ status: 200, type: ClientResponseDto })
+@Patch(':id')
+@Permissions('canManageClients')
+@ApiOperation({ summary: 'Actualizar un cliente' })
+@ApiResponse({ status: 200, type: ClientResponseDto })
   async update(@Param('id', ParseIntPipe) id: number, @Body() updateClientDto: UpdateClientDto, @Request() req): Promise<ClientResponseDto> {
     const client = await this.clientService.update(id, updateClientDto, req.user);
     return mapClientToDto(client);
   }
 
   @Delete(':id')
+  @Permissions('canManageClients')
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Eliminar un cliente' })
   @ApiResponse({ status: 204, description: 'Cliente eliminado exitosamente.' })

@@ -22,6 +22,8 @@ import { AuthGuard } from '@nestjs/passport';
 import { ProductResponseDto } from './dto/product-response.dto';
 import { Product } from './entities/product.entity'; // Importa la entidad Product
 import { UserService } from 'src/user/user.service';
+import { PermissionsGuard } from 'src/common/guards/permissions.guard'; 
+import { Permissions } from 'src/common/decorators/permissions.decorator'; 
 
 // Función auxiliar para mapear la entidad Product a ProductResponseDto
 function mapProductToResponseDto(product: Product): ProductResponseDto {
@@ -60,12 +62,13 @@ function mapProductToDto(product: Product): ProductResponseDto {
 
 @ApiTags('products') // Etiqueta para Swagger
 @ApiBearerAuth() // Indica que se requiere autenticación Bearer (JWT)
-@UseGuards(AuthGuard('jwt')) // Protege todas las rutas de este controlador con el AuthGuard de JWT
+@UseGuards(AuthGuard('jwt'),PermissionsGuard) // Protege todas las rutas de este controlador con el AuthGuard de JWT
 @Controller('products') // Define la ruta base para este controlador
 export class ProductController {
   constructor(private readonly productService: ProductService, private readonly userService: UserService) {}
 
   @Post() // Define una ruta POST para crear un producto
+  @Permissions('canManageProducts')
   @ApiOperation({ summary: 'Crear un nuevo producto' }) // Descripción para Swagger
   @ApiResponse({ status: 201, description: 'El producto ha sido creado exitosamente.', type: ProductResponseDto })
   async create(@Body() dto: CreateProductDto, @Request() req): Promise<ProductResponseDto> {
@@ -132,6 +135,7 @@ export class ProductController {
   }
 
   @Patch(':id') // Define una ruta PATCH para actualizar un producto por su ID
+  @Permissions('canManageProducts') 
   @ApiOperation({ summary: 'Actualizar un producto' })
   @ApiResponse({ status: 200, description: 'El producto ha sido actualizado exitosamente.', type: ProductResponseDto })
   async update(@Param('id') id: number, @Body() dto: UpdateProductDto, @Request() req): Promise<ProductResponseDto> {
@@ -142,6 +146,7 @@ export class ProductController {
   }
 
   @Delete(':id') // Define una ruta DELETE para eliminar un producto por su ID
+  @Permissions('canManageProducts') 
   @ApiOperation({ summary: 'Eliminar un producto' })
   @ApiResponse({ status: 204, description: 'El producto ha sido eliminado exitosamente.' })
   @HttpCode(HttpStatus.NO_CONTENT) // Establece el código de estado HTTP a 204 (Sin Contenido)
@@ -151,6 +156,7 @@ export class ProductController {
   }
 
   @Patch(':id/toggle') // Define una ruta PATCH para cambiar el estado de un producto
+   @Permissions('canManageProducts') 
   @ApiOperation({ summary: 'Alternar estado activo/inactivo de un producto' })
   @ApiResponse({ status: 200, description: 'El estado del producto ha sido alternado exitosamente.', type: ProductResponseDto })
   async toggle(@Param('id') id: number, @Request() req): Promise<ProductResponseDto> {

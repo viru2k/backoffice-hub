@@ -1,8 +1,7 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { DataSource, Repository } from 'typeorm';
 import { SubscriptionPlan } from 'src/subscription-plan/entities/subscription-plan.entity';
-import { SubscriptionPlanFeature } from 'src/subscription-plan/entities/subscription-plan-feature.entity';
 import { Subscription } from 'src/subscription/entities/subscription.entity';
 import { User } from 'src/user/entities/user.entity';
 import { Product } from 'src/product/entities/product.entity';
@@ -13,141 +12,106 @@ import { AppointmentProductLog } from 'src/agenda/entities/appointment-product-l
 import { Client, ClientStatus } from 'src/client/entities/client.entity';
 import { Holiday } from 'src/agenda/entities/holiday.entity';
 import { AgendaConfig } from 'src/agenda/entities/agenda-config.entity';
+import { Role } from 'src/roles/entities/role.entity';
+import { Permission } from 'src/permissions/entities/permission.entity';
 import * as bcrypt from 'bcryptjs';
 import { addMinutes } from 'date-fns';
-
-const STATUS_COLORS_SEED: Record<AppointmentStatus, string> = {
-  [AppointmentStatus.PENDING]: '#f0ad4e',
-  [AppointmentStatus.CONFIRMED]: '#3788d8',
-  [AppointmentStatus.CHECKED_IN]: '#5cb85c',
-  [AppointmentStatus.IN_PROGRESS]: '#28a745',
-  [AppointmentStatus.COMPLETED]: '#5bc0de',
-  [AppointmentStatus.CANCELLED]: '#777777',
-  [AppointmentStatus.NO_SHOW]: '#d9534f',
-  [AppointmentStatus.RESCHEDULED]: '#8a2be2',
-};
+import { SubscriptionPlanFeature } from 'src/subscription-plan/entities/subscription-plan-feature.entity';
 
 @Injectable()
 export class FullFlowExtendedSeedService {
+  private readonly logger = new Logger(FullFlowExtendedSeedService.name);
+
   constructor(
-    @InjectRepository(SubscriptionPlan)
-    private readonly planRepo: Repository<SubscriptionPlan>,
-    @InjectRepository(SubscriptionPlanFeature)
-    private readonly featureRepo: Repository<SubscriptionPlanFeature>,
-    @InjectRepository(Subscription)
-    private readonly subscriptionRepo: Repository<Subscription>,
-    @InjectRepository(User)
-    private readonly userRepo: Repository<User>,
-    @InjectRepository(Product)
-    private readonly productRepo: Repository<Product>,
-    @InjectRepository(ProductPriceHistory)
-    private readonly priceLogRepo: Repository<ProductPriceHistory>,
-    @InjectRepository(StockMovement)
-    private readonly stockRepo: Repository<StockMovement>,
-    @InjectRepository(Appointment)
-    private readonly appointmentRepo: Repository<Appointment>,
-    @InjectRepository(AppointmentProductLog)
-    private readonly appointmentProductLogRepo: Repository<AppointmentProductLog>,
-    @InjectRepository(Client)
-    private readonly clientRepo: Repository<Client>,
-    @InjectRepository(Holiday)
-    private readonly holidayRepo: Repository<Holiday>,
-    @InjectRepository(AgendaConfig)
-    private readonly agendaConfigRepo: Repository<AgendaConfig>,
+    private readonly dataSource: DataSource,
+    @InjectRepository(SubscriptionPlan) private readonly planRepo: Repository<SubscriptionPlan>,
+    @InjectRepository(Subscription) private readonly subscriptionRepo: Repository<Subscription>,
+    @InjectRepository(User) private readonly userRepo: Repository<User>,
+    @InjectRepository(Product) private readonly productRepo: Repository<Product>,
+    @InjectRepository(ProductPriceHistory) private readonly priceLogRepo: Repository<ProductPriceHistory>,
+    @InjectRepository(StockMovement) private readonly stockRepo: Repository<StockMovement>,
+    @InjectRepository(Appointment) private readonly appointmentRepo: Repository<Appointment>,
+    @InjectRepository(AppointmentProductLog) private readonly appointmentProductLogRepo: Repository<AppointmentProductLog>,
+    @InjectRepository(Client) private readonly clientRepo: Repository<Client>,
+    @InjectRepository(Holiday) private readonly holidayRepo: Repository<Holiday>,
+    @InjectRepository(AgendaConfig) private readonly agendaConfigRepo: Repository<AgendaConfig>,
+    @InjectRepository(Role) private readonly roleRepo: Repository<Role>,
+    @InjectRepository(Permission) private readonly permissionRepo: Repository<Permission>,
+    @InjectRepository(SubscriptionPlanFeature) private readonly featureRepo: Repository<SubscriptionPlanFeature>,
   ) {}
 
+  private async cleanDatabase() {
+    this.logger.log('🧹 Limpiando la base de datos...');
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    const tables = await queryRunner.query("SELECT table_name FROM information_schema.tables WHERE table_schema = DATABASE()");
+    await queryRunner.query('SET FOREIGN_KEY_CHECKS = 0;');
+    for (const table of tables) {
+      const tableName = Object.values(table)[0] as string;
+      this.logger.debug(`Truncando tabla: ${tableName}`);
+      await queryRunner.query(`TRUNCATE TABLE \`${tableName}\`;`);
+    }
+    await queryRunner.query('SET FOREIGN_KEY_CHECKS = 1;');
+    await queryRunner.release();
+    this.logger.log('✅ Base de datos limpiada.');
+  }
+
   async run() {
-    console.log('🌱 Iniciando seed extendido de flujo completo...');
-    const formatDate = (date: Date): string => date.toISOString().split('T')[0];
+    await this.cleanDatabase();
+    this.logger.log('🌱 Iniciando seed con sistema de Roles y Permisos (RBAC)...');
 
-    // 1. Crear Planes de Suscripción
-    const existingPlans = await this.planRepo.count();
-    if (existingPlans === 0) {
-      console.log('🌱 No se encontraron planes, creando Starter y Professional...');
-      const starter = await this.planRepo.save({ name: 'Starter', priceMonthly: 10, priceSemiannual: 55, priceAnnual: 100, maxUsers: 3, description: 'Plan básico' });
-      const professional = await this.planRepo.save({ name: 'Professional', priceMonthly: 25, priceSemiannual: 140, priceAnnual: 260, maxUsers: 10, description: 'Plan avanzado' });
-      await this.featureRepo.save([ { subscriptionPlan: starter, feature: 'Gestión básica', enabled: true }, { subscriptionPlan: professional, feature: 'Gestión avanzada', enabled: true } ]);
-    }
-    const starterPlan = await this.planRepo.findOneBy({ name: 'Starter' });
-    const professionalPlan = await this.planRepo.findOneBy({ name: 'Professional' });
+    // 1. CREAR PERMISOS
+    this.logger.log('🌱 Creando permisos...');
+    const permissionsData = [
+      { name: 'agenda:read:own', description: 'Ver la agenda propia' },
+      { name: 'agenda:read:group', description: 'Ver la agenda de todos en el grupo' },
+      { name: 'agenda:write:own', description: 'Crear/editar en la agenda propia' },
+      { name: 'agenda:write:group', description: 'Crear/editar en la agenda de todos en el grupo' },
+      { name: 'client:manage:group', description: 'Crear/editar/eliminar clientes del grupo' },
+      { name: 'product:manage:group', description: 'Crear/editar/eliminar productos del grupo' },
+      { name: 'user:manage:group', description: 'Crear/editar/eliminar sub-usuarios del grupo' },
+    ];
+    await this.permissionRepo.save(permissionsData);
+    const allPermissions = await this.permissionRepo.find();
 
-    // 2. Crear Usuarios
-    console.log('🌱 Creando usuarios...');
+    // 2. CREAR ROLES
+    this.logger.log('🌱 Creando roles...');
+    const getPerms = (...names: string[]) => allPermissions.filter(p => names.includes(p.name));
+    const adminRole = await this.roleRepo.save({ name: 'Admin de Cuenta', description: 'Acceso total a la cuenta.', permissions: allPermissions });
+    const profesionalRole = await this.roleRepo.save({ name: 'Profesional', description: 'Gestiona su agenda y clientes.', permissions: getPerms('agenda:read:own', 'agenda:write:own', 'client:manage:group') });
+    const secretariaRole = await this.roleRepo.save({ name: 'Secretaria', description: 'Gestiona agendas y clientes del grupo.', permissions: getPerms('agenda:read:group', 'agenda:write:group', 'client:manage:group') });
+
+    // 3. CREAR PLANES DE SUSCRIPCIÓN
+    this.logger.log('🌱 Creando planes de suscripción...');
+    const starterPlan = await this.planRepo.save({ name: 'Starter', priceMonthly: 10, priceSemiannual: 55, priceAnnual: 100, maxUsers: 3, description: 'Plan para empezar' });
+    const professionalPlan = await this.planRepo.save({ name: 'Professional', priceMonthly: 25, priceSemiannual: 140, priceAnnual: 260, maxUsers: 10, description: 'Plan para equipos' });
+    
+    // 4. CREAR USUARIOS, ROLES Y SUSCRIPCIONES
+    this.logger.log('🌱 Creando usuarios...');
     const hashedPassword = await bcrypt.hash('12345678', 10);
-    const peluqueriaAdmin = await this.userRepo.save({ email: 'peluqueria@glamour.com', password: hashedPassword, name: 'Glamour', lastName: 'Peluquería', isAdmin: true, isActive: true });
-    const oftalmologiaAdmin = await this.userRepo.save({ email: 'oftalmologia@vision.com', password: hashedPassword, name: 'Clínica', lastName: 'Visión', isAdmin: true, isActive: true });
-    const peluqueroSubUser = await this.userRepo.save({ email: 'estilista@glamour.com', password: hashedPassword, name: 'Estilista', lastName: 'Uno', owner: peluqueriaAdmin, isAdmin: false, isActive: true });
+    const clinicaAdmin = await this.userRepo.save({ email: 'admin@clinica.com', password: hashedPassword, name: 'Admin', lastName: 'Clínica', roles: [adminRole] });
+    await this.subscriptionRepo.save({ user: clinicaAdmin, subscriptionPlan: professionalPlan, status: 'active', startDate: new Date(), endDate: new Date(new Date().setFullYear(new Date().getFullYear() + 1)) });
+    const medicoUno = await this.userRepo.save({ email: 'medico1@clinica.com', password: hashedPassword, name: 'Dr.', lastName: 'Arias', owner: clinicaAdmin, roles: [profesionalRole] });
+    const medicoDos = await this.userRepo.save({ email: 'medico2@clinica.com', password: hashedPassword, name: 'Dra.', lastName: 'Gomez', owner: clinicaAdmin, roles: [profesionalRole] });
+    const secretariaClinica = await this.userRepo.save({ email: 'secretaria@clinica.com', password: hashedPassword, name: 'Laura', lastName: 'Velez', owner: clinicaAdmin, roles: [secretariaRole] });
 
-    await this.subscriptionRepo.save({ user: peluqueriaAdmin, subscriptionPlan: starterPlan, startDate: new Date(), endDate: new Date(new Date().setFullYear(new Date().getFullYear() + 1)), status: 'active' });
-    await this.subscriptionRepo.save({ user: oftalmologiaAdmin, subscriptionPlan: professionalPlan, startDate: new Date(), endDate: new Date(new Date().setFullYear(new Date().getFullYear() + 1)), status: 'active' });
+    // 5. CREAR CONFIGURACIÓN DE AGENDA (CORREGIDO)
+    this.logger.log('🌱 Creando configuración de agenda...');
+    await this.agendaConfigRepo.save({ user: medicoUno, startTime: '09:00', endTime: '17:00', slotDuration: 20, workingDays: ['Monday', 'Wednesday', 'Friday'] });
+    await this.agendaConfigRepo.save({ user: medicoDos, startTime: '08:00', endTime: '16:00', slotDuration: 30, workingDays: ['Tuesday', 'Thursday'] });
 
-    // 3. Crear Configuración de Agenda
-    console.log('🌱 Creando configuración de agenda...');
-    const configPeluqueria = await this.agendaConfigRepo.save({ user: peluqueriaAdmin, startTime: '09:00', endTime: '18:00', slotDuration: 30, workingDays: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'] });
-    await this.agendaConfigRepo.save({ user: peluqueroSubUser, startTime: '09:00', endTime: '18:00', slotDuration: 30, workingDays: ['Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'] });
-    const configOftalmologia = await this.agendaConfigRepo.save({ user: oftalmologiaAdmin, startTime: '08:00', endTime: '17:00', slotDuration: 15, workingDays: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'], overbookingAllowed: true });
-
-    // 4. Crear Productos
-    console.log('🌱 Creando productos...');
-    const shampoo = await this.productRepo.save({ name: 'Shampoo Anti-Caspa', owner: peluqueriaAdmin, user: peluqueriaAdmin, currentPrice: 10, status: 'activo' });
-    const tinte = await this.productRepo.save({ name: 'Tinte Color Intenso', owner: peluqueriaAdmin, user: peluqueriaAdmin, currentPrice: 20, status: 'activo' });
-    const lentes = await this.productRepo.save({ name: 'Lentes de Contacto', owner: oftalmologiaAdmin, user: oftalmologiaAdmin, currentPrice: 50, status: 'activo' });
-
-    // 5. Crear Stock inicial (CORREGIDO)
-    console.log('🌱 Creando stock...');
-    await this.stockRepo.save({ product: shampoo, user: peluqueriaAdmin, quantity: 100, type: StockMovementType.IN, reason: 'Carga inicial', productNameAtTime: shampoo.name, date: new Date() });
-    await this.stockRepo.save({ product: tinte, user: peluqueriaAdmin, quantity: 50, type: StockMovementType.IN, reason: 'Carga inicial', productNameAtTime: tinte.name, date: new Date() });
-    await this.stockRepo.save({ product: lentes, user: oftalmologiaAdmin, quantity: 200, type: StockMovementType.IN, reason: 'Carga inicial', productNameAtTime: lentes.name, date: new Date() });
-
-    // 6. Crear Clientes
-    console.log('🌱 Creando clientes...');
-    const cliente1 = await this.clientRepo.save(this.clientRepo.create({ fullname: 'Ana García', name: 'Ana', lastName: 'García', email: 'ana.garcia@example.com', phone: '555-1234', owner: peluqueriaAdmin, user: peluqueriaAdmin, status: ClientStatus.ACTIVE }));
-    const paciente1 = await this.clientRepo.save(this.clientRepo.create({ fullname: 'Carlos López', name: 'Carlos', lastName: 'López', email: 'carlos.lopez@example.com', phone: '555-5678', owner: oftalmologiaAdmin, user: oftalmologiaAdmin, status: ClientStatus.ACTIVE }));
-
-    // 7. Crear Citas
-    console.log('🌱 Creando citas...');
+    // 6. CREAR CLIENTES Y CITAS
+    this.logger.log('🌱 Creando clientes y citas...');
+    const pacienteClinica = await this.clientRepo.save({ fullname: 'Roberto Carlos', name: 'Roberto', lastName: 'Carlos', owner: clinicaAdmin, user: clinicaAdmin, status: ClientStatus.ACTIVE });
     const now = new Date();
-    const corteCabello = await this.appointmentRepo.save(this.appointmentRepo.create({
-      title: 'Corte de Cabello', description: 'Corte y peinado para Ana',
-      startDateTime: new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 10, 0, 0),
-      endDateTime: addMinutes(new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 10, 0, 0), configPeluqueria.slotDuration),
-      professional: peluqueroSubUser,
-      client: cliente1,
-      status: AppointmentStatus.CONFIRMED,
-      color: STATUS_COLORS_SEED[AppointmentStatus.CONFIRMED],
-    }));
+    await this.appointmentRepo.save({ title: 'Control Anual - R. Carlos', startDateTime: new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 10, 0, 0), endDateTime: addMinutes(new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 10, 0, 0), 20), professional: medicoUno, client: pacienteClinica, status: AppointmentStatus.CONFIRMED });
+    await this.appointmentRepo.save({ title: 'Consulta Urgente - R. Carlos', startDateTime: new Date(now.getFullYear(), now.getMonth(), now.getDate() + 2, 11, 0, 0), endDateTime: addMinutes(new Date(now.getFullYear(), now.getMonth(), now.getDate() + 2, 11, 0, 0), 30), professional: medicoDos, client: pacienteClinica, status: AppointmentStatus.CONFIRMED });
 
-    const consultaOftalmologica = await this.appointmentRepo.save(this.appointmentRepo.create({
-      title: 'Consulta Anual', description: 'Revisión anual para Carlos',
-      startDateTime: new Date(now.getFullYear(), now.getMonth(), now.getDate() + 2, 14, 30, 0),
-      endDateTime: addMinutes(new Date(now.getFullYear(), now.getMonth(), now.getDate() + 2, 14, 30, 0), configOftalmologia.slotDuration),
-      professional: oftalmologiaAdmin,
-      client: paciente1,
-      status: AppointmentStatus.CONFIRMED,
-      color: STATUS_COLORS_SEED[AppointmentStatus.CONFIRMED],
-    }));
-
-    await this.appointmentRepo.save(this.appointmentRepo.create({
-      title: 'Peinado (Cancelado)', description: 'Peinado para boda',
-      startDateTime: new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 15, 0, 0), 
-      endDateTime: addMinutes(new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 15, 0, 0), 60),
-      professional: peluqueriaAdmin,
-      client: cliente1,
-      status: AppointmentStatus.CANCELLED,
-      color: STATUS_COLORS_SEED[AppointmentStatus.CANCELLED],
-    }));
-
-    // 8. Crear Logs de Productos Usados
-    console.log('🌱 Creando logs de productos...');
-    if (corteCabello && shampoo) {
-      await this.appointmentProductLogRepo.save({ appointment: corteCabello, product: shampoo, quantity: 1, priceAtTime: shampoo.currentPrice });
-    }
-
-    // 9. Crear Feriados
-    console.log('🌱 Creando feriados...');
-    await this.holidayRepo.save({ reason: 'Navidad', date: formatDate(new Date(now.getFullYear(), 11, 25)), user: peluqueriaAdmin });
-    await this.holidayRepo.save({ reason: 'Navidad', date: formatDate(new Date(now.getFullYear(), 11, 25)), user: oftalmologiaAdmin });
-
-    console.log('✅ Seed extendido de flujo completo finalizado!');
+    this.logger.log('✅ Seed con RBAC finalizado!');
+    this.logger.log('--- Credenciales de Prueba ---');
+    this.logger.log('Admin Clínica: admin@clinica.com / 12345678');
+    this.logger.log('Médico 1: medico1@clinica.com / 12345678');
+    this.logger.log('Médico 2: medico2@clinica.com / 12345678');
+    this.logger.log('Secretaria: secretaria@clinica.com / 12345678');
   }
 }

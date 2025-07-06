@@ -4,13 +4,16 @@ import {
   Column,
   ManyToOne,
   OneToMany,
-  CreateDateColumn, // <-- IMPORTAR CreateDateColumn
-  UpdateDateColumn, // <-- IMPORTAR UpdateDateColumn
+  CreateDateColumn, 
+  UpdateDateColumn,
+  ManyToMany,
+  JoinTable, 
 } from 'typeorm';
 import { Product } from 'src/product/entities/product.entity';
 import { Client } from 'src/client/entities/client.entity';
 import { Subscription } from 'src/subscription/entities/subscription.entity';
 import { StockMovement } from 'src/stock/entities/stock-movement.entity';
+import { Role } from 'src/roles/entities/role.entity';
 
 @Entity('user')
 export class User {
@@ -74,6 +77,12 @@ export class User {
 
    @OneToMany(() => StockMovement, (movement) => movement.user)
   stockMovements: StockMovement[];
+
+  @ManyToMany(() => Role, (role) => role.users, {
+    eager: true, // Cargar roles automáticamente cada vez que se busca un usuario
+  })
+  @JoinTable()
+  roles: Role[];
 
   // --- PROPIEDAD COMPUTADA fullName ---
   get fullName(): string {

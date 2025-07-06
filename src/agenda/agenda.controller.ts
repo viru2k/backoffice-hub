@@ -94,7 +94,7 @@ export class AgendaController {
   constructor(private readonly agendaService: AgendaService, private readonly userService: UserService) {}
 
   @Post()
-  @Permissions('canManageAgenda')
+  @Permissions('agenda:write:own', 'agenda:write:group')
   @ApiOperation({ summary: 'Crear un turno manual' })
   @ApiResponse({ status: HttpStatus.CREATED, description: 'Turno creado exitosamente.', type: AppointmentResponseDto })
   async create(@Body() dto: CreateAppointmentDto, @Request() req): Promise<AppointmentResponseDto> {
@@ -103,7 +103,7 @@ export class AgendaController {
   }
 
   @Patch(':id') // Ruta para actualizar un turno
-  @Permissions('canManageAgenda')
+  @Permissions('agenda:write:own', 'agenda:write:group')
   @ApiOperation({ summary: 'Actualizar un turno existente' })
   @ApiResponse({ status: HttpStatus.OK, description: 'Turno actualizado exitosamente.', type: AppointmentResponseDto })
   @ApiResponse({ status: HttpStatus.NOT_FOUND, description: 'Turno no encontrado.' })
@@ -128,6 +128,7 @@ export class AgendaController {
   }
 
   @Get()
+  @Permissions('agenda:read:own', 'agenda:read:group')
   @ApiOperation({ summary: 'Obtener turnos por diversos filtros (fecha, rango, estado, profesional)' })
   @ApiQuery({ name: 'date', required: false, type: String, description: 'Fecha específica (YYYY-MM-DD)' })
   @ApiQuery({ name: 'from', required: false, type: String, description: 'Fecha de inicio del rango (YYYY-MM-DD)' })
@@ -163,6 +164,7 @@ export class AgendaController {
   }
 
 @Get('available')
+@Permissions('agenda:read:own', 'agenda:read:group')
 @ApiOperation({ summary: 'Ver slots disponibles para un día y profesional' })
 @ApiQuery({ name: 'date', required: true, type: String, description: 'Fecha para consultar (YYYY-MM-DD)'})
 @ApiQuery({ name: 'professionalId', required: false, type: Number, description: 'ID del profesional (si es diferente al logueado)'})

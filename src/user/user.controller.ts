@@ -22,7 +22,8 @@ import {
 } from '@nestjs/swagger';
 import { User } from './entities/user.entity';
 import { AdminUpdateUserDto } from './dto/admin-update-user.dto';
-
+import { PermissionsGuard } from 'src/common/guards/permissions.guard';
+import { Permissions } from 'src/common/decorators/permissions.decorator';
 
 function mapUserToResponseDto(user: User): UserResponseDto {
   if (!user) return null;
@@ -41,7 +42,7 @@ const response: UserResponseDto = {
 
 @ApiTags('users') // Unificada la etiqueta a 'users'
 @ApiBearerAuth()
-@UseGuards(AuthGuard('jwt'))
+@UseGuards(AuthGuard('jwt'), PermissionsGuard)
 @Controller('users') // Unificada la ruta a 'users'
 export class UserController {
   constructor(private readonly userService: UserService) {}
@@ -54,6 +55,7 @@ export class UserController {
   }
 
   @Post('sub-user')
+  @Permissions('canManageUsers')
   @ApiOperation({ summary: 'Admin: Crear un nuevo sub-usuario en el grupo' })
   @ApiResponse({ status: 201, description: 'Sub-usuario creado.', type: UserResponseDto })
   async createSubUser(
@@ -65,6 +67,7 @@ export class UserController {
   }
 
   @Get('group')
+  @Permissions('canManageUsers') 
   @ApiOperation({ summary: 'Admin: Listar todos los usuarios del grupo' })
   @ApiResponse({ status: 200, description: 'Lista de usuarios.', type: [UserResponseDto] })
   async getGroupUsers(@Request() req): Promise<UserResponseDto[]> {
@@ -73,6 +76,7 @@ export class UserController {
   }
 
   @Patch('sub-user/:id')
+  @Permissions('canManageUsers')
   @ApiOperation({ summary: 'Admin: Actualizar un sub-usuario (perfil, permisos, estado)' })
   @ApiResponse({ status: 200, description: 'Sub-usuario actualizado.', type: UserResponseDto })
   async updateSubUser(

@@ -101,7 +101,9 @@ TRUNCATE TABLE agenda_config;
 TRUNCATE TABLE appointment;
 TRUNCATE TABLE appointment_product_log;
 TRUNCATE TABLE client;
+TRUNCATE TABLE failed_notification ;
 TRUNCATE TABLE holiday;
+TRUNCATE TABLE notification ;
 TRUNCATE TABLE product;
 TRUNCATE TABLE product_price_history;
 TRUNCATE TABLE stock_movement;
@@ -109,6 +111,9 @@ TRUNCATE TABLE subscription;
 TRUNCATE TABLE subscription_plan;
 TRUNCATE TABLE subscription_plan_feature;
 TRUNCATE TABLE user;
+
+SET FOREIGN_KEY_CHECKS = 1;
+
 -- Añade más tablas aquí si es necesario en el futuro
 
 SET FOREIGN_KEY_CHECKS = 1;

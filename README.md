@@ -155,7 +155,15 @@ Credenciales del Seed
 El script de seed crea dos cuentas de administrador con las que puedes probar la aplicación. También crea un sub-usuario para la cuenta de la peluquería.
 
 
-Correo Electrónico	Contraseña	Plan	Rol
-peluqueria@glamour.com	12345678	Starter	Admin
-estilista@glamour.com	12345678	(Heredado)	Sub-Usuario
-oftalmologia@vision.com	12345678	Professional	Admin
+
+Correo  Electrónico     Contraseña  Cuenta Principal    Rol             Plan
+
+peluqueria@glamour.com  12345678    Peluquería Glamour  Admin de Cuenta Starter
+
+estilista@glamour.com   12345678    Peluquería Glamour  Profesional     (Heredado)
+
+recepcion@glamour.com   12345678    Peluquería Glamour  Secretaria      (Heredado)
+
+oftalmologia@vision.com 12345678    Clínica Visión      Admin de Cuenta  Professional
+
+medico@vision.com       12345678    Clínica Visión      Profesional      (Heredado)

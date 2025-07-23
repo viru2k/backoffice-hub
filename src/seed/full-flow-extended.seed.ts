@@ -78,7 +78,7 @@ export class FullFlowExtendedSeedService {
     this.logger.log('🌱 Creando roles...');
     const getPerms = (...names: string[]) => allPermissions.filter(p => names.includes(p.name));
     const adminRole = await this.roleRepo.save({ name: 'Admin de Cuenta', description: 'Acceso total a la cuenta.', permissions: allPermissions });
-    const profesionalRole = await this.roleRepo.save({ name: 'Profesional', description: 'Gestiona su agenda y clientes.', permissions: getPerms('agenda:read:own', 'agenda:write:own', 'client:manage:group') });
+    const profesionalRole = await this.roleRepo.save({ name: 'Profesional', description: 'Gestiona su agenda y clientes.', permissions: getPerms('agenda:read:own', 'agenda:write:own', 'client:manage:group', 'product:manage:group') });
     const secretariaRole = await this.roleRepo.save({ name: 'Secretaria', description: 'Gestiona agendas y clientes del grupo.', permissions: getPerms('agenda:read:group', 'agenda:write:group', 'client:manage:group') });
 
     // 3. CREAR PLANES DE SUSCRIPCIÓN
@@ -89,29 +89,41 @@ export class FullFlowExtendedSeedService {
     // 4. CREAR USUARIOS, ROLES Y SUSCRIPCIONES
     this.logger.log('🌱 Creando usuarios...');
     const hashedPassword = await bcrypt.hash('12345678', 10);
-    const clinicaAdmin = await this.userRepo.save({ email: 'admin@clinica.com', password: hashedPassword, name: 'Admin', lastName: 'Clínica', roles: [adminRole] });
-    await this.subscriptionRepo.save({ user: clinicaAdmin, subscriptionPlan: professionalPlan, status: 'active', startDate: new Date(), endDate: new Date(new Date().setFullYear(new Date().getFullYear() + 1)) });
-    const medicoUno = await this.userRepo.save({ email: 'medico1@clinica.com', password: hashedPassword, name: 'Dr.', lastName: 'Arias', owner: clinicaAdmin, roles: [profesionalRole] });
-    const medicoDos = await this.userRepo.save({ email: 'medico2@clinica.com', password: hashedPassword, name: 'Dra.', lastName: 'Gomez', owner: clinicaAdmin, roles: [profesionalRole] });
-    const secretariaClinica = await this.userRepo.save({ email: 'secretaria@clinica.com', password: hashedPassword, name: 'Laura', lastName: 'Velez', owner: clinicaAdmin, roles: [secretariaRole] });
+    
+    // -- Cuenta "Peluquería Glamour" --
+    const peluqueriaAdmin = await this.userRepo.save({ email: 'peluqueria@glamour.com', password: hashedPassword, name: 'Admin', lastName: 'Glamour', roles: [adminRole] });
+    await this.subscriptionRepo.save({ user: peluqueriaAdmin, subscriptionPlan: starterPlan, status: 'active', startDate: new Date(), endDate: new Date(new Date().setFullYear(new Date().getFullYear() + 1)) });
+    const estilistaUno = await this.userRepo.save({ email: 'estilista@glamour.com', password: hashedPassword, name: 'Carlos', lastName: 'Estilista', owner: peluqueriaAdmin, roles: [profesionalRole] });
+    const secretariaPeluqueria = await this.userRepo.save({ email: 'recepcion@glamour.com', password: hashedPassword, name: 'Laura', lastName: 'Recepcionista', owner: peluqueriaAdmin, roles: [secretariaRole] });
 
-    // 5. CREAR CONFIGURACIÓN DE AGENDA (CORREGIDO)
+    // -- Cuenta "Clínica Visión" --
+    const oftalmologiaAdmin = await this.userRepo.save({ email: 'oftalmologia@vision.com', password: hashedPassword, name: 'Admin', lastName: 'Visión', roles: [adminRole] });
+    await this.subscriptionRepo.save({ user: oftalmologiaAdmin, subscriptionPlan: professionalPlan, status: 'active', startDate: new Date(), endDate: new Date(new Date().setFullYear(new Date().getFullYear() + 1)) });
+    const medicoOftalmologo = await this.userRepo.save({ email: 'medico@vision.com', password: hashedPassword, name: 'Dr.', lastName: 'Arias', owner: oftalmologiaAdmin, roles: [profesionalRole] });
+
+    // 5. CREAR CONFIGURACIÓN DE AGENDA
     this.logger.log('🌱 Creando configuración de agenda...');
-    await this.agendaConfigRepo.save({ user: medicoUno, startTime: '09:00', endTime: '17:00', slotDuration: 20, workingDays: ['Monday', 'Wednesday', 'Friday'] });
-    await this.agendaConfigRepo.save({ user: medicoDos, startTime: '08:00', endTime: '16:00', slotDuration: 30, workingDays: ['Tuesday', 'Thursday'] });
+    await this.agendaConfigRepo.save({ user: estilistaUno, startTime: '09:00', endTime: '18:00', slotDuration: 45, workingDays: ['Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'] });
+    await this.agendaConfigRepo.save({ user: medicoOftalmologo, startTime: '08:00', endTime: '16:00', slotDuration: 20, workingDays: ['Monday', 'Wednesday', 'Friday'] });
+    
+    // 6. CREAR CLIENTES Y PRODUCTOS
+    this.logger.log('🌱 Creando clientes y productos...');
+    const clientePeluqueria = await this.clientRepo.save({ fullname: 'Ana Torres', name: 'Ana', lastName: 'Torres', owner: peluqueriaAdmin, user: peluqueriaAdmin, status: ClientStatus.ACTIVE });
+    const pacienteOftalmologia = await this.clientRepo.save({ fullname: 'Roberto Sanz', name: 'Roberto', lastName: 'Sanz', owner: oftalmologiaAdmin, user: oftalmologiaAdmin, status: ClientStatus.ACTIVE });
+    const shampoo = await this.productRepo.save({ name: 'Shampoo Profesional', owner: peluqueriaAdmin, user: peluqueriaAdmin, currentPrice: 25, status: 'activo' });
 
-    // 6. CREAR CLIENTES Y CITAS
-    this.logger.log('🌱 Creando clientes y citas...');
-    const pacienteClinica = await this.clientRepo.save({ fullname: 'Roberto Carlos', name: 'Roberto', lastName: 'Carlos', owner: clinicaAdmin, user: clinicaAdmin, status: ClientStatus.ACTIVE });
+    // 7. CREAR CITAS
+    this.logger.log('🌱 Creando citas...');
     const now = new Date();
-    await this.appointmentRepo.save({ title: 'Control Anual - R. Carlos', startDateTime: new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 10, 0, 0), endDateTime: addMinutes(new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 10, 0, 0), 20), professional: medicoUno, client: pacienteClinica, status: AppointmentStatus.CONFIRMED });
-    await this.appointmentRepo.save({ title: 'Consulta Urgente - R. Carlos', startDateTime: new Date(now.getFullYear(), now.getMonth(), now.getDate() + 2, 11, 0, 0), endDateTime: addMinutes(new Date(now.getFullYear(), now.getMonth(), now.getDate() + 2, 11, 0, 0), 30), professional: medicoDos, client: pacienteClinica, status: AppointmentStatus.CONFIRMED });
+    await this.appointmentRepo.save({ title: 'Corte y Color - Ana Torres', startDateTime: new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 11, 0, 0), endDateTime: addMinutes(new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 11, 0, 0), 90), professional: estilistaUno, client: clientePeluqueria, status: AppointmentStatus.CONFIRMED });
+    await this.appointmentRepo.save({ title: 'Control Anual - Roberto Sanz', startDateTime: new Date(now.getFullYear(), now.getMonth(), now.getDate() + 2, 10, 0, 0), endDateTime: addMinutes(new Date(now.getFullYear(), now.getMonth(), now.getDate() + 2, 10, 0, 0), 20), professional: medicoOftalmologo, client: pacienteOftalmologia, status: AppointmentStatus.CONFIRMED });
 
     this.logger.log('✅ Seed con RBAC finalizado!');
     this.logger.log('--- Credenciales de Prueba ---');
-    this.logger.log('Admin Clínica: admin@clinica.com / 12345678');
-    this.logger.log('Médico 1: medico1@clinica.com / 12345678');
-    this.logger.log('Médico 2: medico2@clinica.com / 12345678');
-    this.logger.log('Secretaria: secretaria@clinica.com / 12345678');
+    this.logger.log('Admin Peluquería: peluqueria@glamour.com / 12345678');
+    this.logger.log('Estilista: estilista@glamour.com / 12345678');
+    this.logger.log('Secretaria Peluquería: recepcion@glamour.com / 12345678');
+    this.logger.log('Admin Oftalmología: oftalmologia@vision.com / 12345678');
+    this.logger.log('Médico: medico@vision.com / 12345678');
   }
 }

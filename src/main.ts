@@ -13,7 +13,7 @@ async function bootstrap() {
   console.log('Después de dotenv.config() - DB_NAME:', process.env.DB_NAME);
 
   const app = await NestFactory.create(AppModule);
-  app.useGlobalPipes(new ValidationPipe());
+  //  app.useGlobalPipes(new ValidationPipe()); // Temporarily disabled for debugging
   const config = new DocumentBuilder()
     .setTitle('Backoffice Hub API')
     .setDescription('API del sistema SaaS modular de backoffice')

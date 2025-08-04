@@ -44,46 +44,7 @@ import { Permissions } from 'src/common/decorators/permissions.decorator';
 
 
 // Esta función convierte la entidad Appointment a AppointmentResponseDto
-function mapAppointmentToResponseDto(appointment: Appointment): AppointmentResponseDto {
-  if (!appointment) return null;
-
-  const professionalResponse: AppointmentProfessionalResponseDto = appointment.professional
-    ? { id: appointment.professional.id, fullName: appointment.professional.fullName }
-    : undefined;
-
-  const clientResponse: AppointmentClientResponseDto = appointment.client
-    ? { 
-        id: appointment.client.id, 
-        fullname: appointment.client.fullname,
-        name: appointment.client.name,
-        lastName: appointment.client.lastName,
-      }
-    : undefined;
-
-  return {
-    id: appointment.id.toString(), // FullCalendar espera IDs de string
-    title: appointment.title || 'Turno sin título',
-    start: appointment.startDateTime.toISOString(),
-    end: appointment.endDateTime ? appointment.endDateTime.toISOString() : null,
-    allDay: appointment.allDay || false,
-    color: appointment.color || STATUS_COLORS[appointment.status] || '#3788d8', // Asignar color basado en estado
-    status: appointment.status,
-    notes: appointment.notes,
-    professional: professionalResponse,
-    client: clientResponse,
-    serviceId: appointment.serviceId,
-    roomId: appointment.roomId,
-    createdAt: appointment.createdAt.toISOString(),
-    updatedAt: appointment.updatedAt.toISOString(),
-    extendedProps: {
-      resourceId: appointment.professional?.id?.toString() || appointment.roomId?.toString() || undefined,
-      originalStatus: appointment.status,
-      // Se puede añadir más propiedades aquí si es necesario
-       clientId: appointment.client?.id,
-       notes: appointment.notes, 
-    },
-  };
-}
+import { mapAppointmentToResponseDto } from './mappers/appointment.mapper';
 
 
 @ApiTags('agenda')
@@ -117,7 +78,7 @@ export class AgendaController {
   }
 
   @Post('book')
-  @Permissions('canManageAgenda')
+  @Permissions('agenda:write:own', 'agenda:write:group')
   @ApiOperation({ summary: 'Reservar un turno en un slot disponible (cliente o profesional)' })
   @ApiResponse({ status: HttpStatus.CREATED, description: 'Turno reservado exitosamente.', type: AppointmentResponseDto })
   async book(@Body() dto: BookAppointmentDto, @Request() req): Promise<AppointmentResponseDto> {
@@ -199,28 +160,13 @@ async getAvailable(
       @Query('professionalId') professionalIdQuery?: number,
     ): Promise<AgendaConfigResponseDto | null> {
     const targetProfessionalId = professionalIdQuery || req.user.id;
-    const config = await this.agendaService.getConfig(targetProfessionalId);
-    // Aquí necesitarías mapear la entidad AgendaConfig a AgendaConfigResponseDto si son diferentes
-    // Por ahora, asumo que son compatibles o el servicio ya devuelve algo adecuado.
-    // Ejemplo de mapeo si fuera necesario:
-    // if (!config) return null;
-    // return {
-    //   id: config.id,
-    //   userId: config.user.id, // o professionalId
-    //   slotDurationMinutes: config.slotDuration,
-    //   workStart: config.startTime,
-    //   workEnd: config.endTime,
-    //   workingDays: config.workingDays.map(d => /* convertir a número si es necesario */),
-    //   allowOverbooking: config.overbookingAllowed,
-    //   allowBookingOnBlockedDays: config.allowBookingOnBlockedDays,
-    // };
-    return config as any; // Ajustar mapeo si es necesario
+    const config = await this.agendaService.getConfig(targetProfessionalId);     
+    return config as any; 
   }
 
   @Patch('config')
-  @Permissions('canManageAgenda')
+  @Permissions('agenda:write:own', 'agenda:write:group')
   @ApiOperation({ summary: 'Actualizar configuración de agenda del profesional actual (o especificado)' })
-  @ApiQuery({ name: 'professionalId', required: false, type: Number, description: 'ID del profesional a configurar (admin)'})
   @ApiResponse({ status: HttpStatus.OK, type: AgendaConfigResponseDto })
   async updateConfig(
     @Body() dto: UpdateAgendaConfigDto, 
@@ -229,12 +175,11 @@ async getAvailable(
     ): Promise<AgendaConfigResponseDto> {
     const targetProfessionalId = professionalIdQuery || req.user.id;
     const updatedConfig = await this.agendaService.updateConfig(targetProfessionalId, dto);
-    // Similar a getConfig, mapear a DTO si es necesario
-    return updatedConfig as any; // Ajustar mapeo si es necesario
+    return updatedConfig as any;
   }
 
   @Post('holiday')
-  @Permissions('canManageAgenda')
+  @Permissions('agenda:write:own', 'agenda:write:group')
   @ApiOperation({ summary: 'Agregar feriado para un profesional' })
   @ApiQuery({ name: 'professionalId', required: false, type: Number, description: 'ID del profesional (admin)'})
   @ApiResponse({ status: HttpStatus.CREATED, type: HolidayResponseDto }) // Asegúrate que HolidayResponseDto exista
@@ -339,7 +284,7 @@ async getAvailable(
 
   // Endpoint para registrar productos usados en una cita
   @Patch(':id/products-used')
-  @Permissions('canManageAgenda')
+  @Permissions('agenda:write:own', 'agenda:write:group')
   @ApiOperation({ summary: 'Registrar productos utilizados en la cita' })
   @ApiResponse({ status: HttpStatus.OK, description: 'Productos registrados correctamente.' })
   @ApiResponse({ status: HttpStatus.NOT_FOUND, description: 'Cita no encontrada.'})
@@ -373,7 +318,7 @@ async getAvailable(
 
   // Podrías añadir un endpoint DELETE para cancelar/eliminar turnos si es necesario
   @Delete(':id')
-  @Permissions('canManageAgenda')
+  @Permissions('agenda:write:own', 'agenda:write:group')
   @ApiOperation({ summary: 'Eliminar un turno (o marcarlo como cancelado)' })
   @ApiResponse({ status: HttpStatus.OK, description: 'Turno eliminado o cancelado.', type: AppointmentResponseDto })
   @ApiResponse({ status: HttpStatus.NOT_FOUND, description: 'Turno no encontrado.' })

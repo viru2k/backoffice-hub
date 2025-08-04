@@ -1,5 +1,5 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsString, IsOptional, IsBoolean } from 'class-validator';
+import { IsString, IsOptional, IsBoolean, IsArray, IsNumber } from 'class-validator';
 
 export class AdminUpdateUserDto {
   @ApiPropertyOptional({ description: 'Nombre completo del usuario', example: 'Juan Pérez' })
@@ -12,19 +12,9 @@ export class AdminUpdateUserDto {
   @IsBoolean()
   isActive?: boolean;
 
-  @ApiPropertyOptional({ description: 'Permiso para gestionar la agenda', example: true })
+  @ApiPropertyOptional({ description: 'Array de IDs de roles a asignar al usuario', type: [Number], example: [1, 2] })
   @IsOptional()
-  @IsBoolean()
-  canManageAgenda?: boolean;
-
-  @ApiPropertyOptional({ description: 'Permiso para gestionar clientes', example: true })
-  @IsOptional()
-  @IsBoolean()
-  canManageClients?: boolean;
-
-  @ApiPropertyOptional({ description: 'Permiso para gestionar productos', example: true })
-  @IsOptional()
-  @IsBoolean()
-  canManageProducts?: boolean;
-
+  @IsArray()
+  @IsNumber({}, { each: true })
+  roleIds?: number[];
 }

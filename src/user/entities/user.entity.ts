@@ -9,11 +9,11 @@ import {
   ManyToMany,
   JoinTable, 
 } from 'typeorm';
-import { Product } from 'src/product/entities/product.entity';
-import { Client } from 'src/client/entities/client.entity';
-import { Subscription } from 'src/subscription/entities/subscription.entity';
-import { StockMovement } from 'src/stock/entities/stock-movement.entity';
-import { Role } from 'src/roles/entities/role.entity';
+import { Product } from '../../product/entities/product.entity';
+import { Client } from '../../client/entities/client.entity';
+import { Subscription } from '../../subscription/entities/subscription.entity';
+import { StockMovement } from '../../stock/entities/stock-movement.entity';
+import { Role } from '../../roles/entities/role.entity';
 
 @Entity('user')
 export class User {
@@ -38,18 +38,7 @@ export class User {
   @Column({ default: false })
   isAdmin: boolean;
 
-  // --- NUEVOS CAMPOS DE PERMISOS ---
-  @Column({ default: true })
-  canManageAgenda: boolean;
   
-  @Column({ default: true })
-  canManageClients: boolean;
-
-  @Column({ default: true })
-  canManageProducts: boolean;
-  
-  @Column({ default: false })
-  canManageUsers: boolean;
 
   // --- AÑADIR COLUMNAS DE FECHA ---
   @CreateDateColumn() // TypeORM manejará esto automáticamente al crear

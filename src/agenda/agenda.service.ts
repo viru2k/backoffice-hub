@@ -21,11 +21,24 @@ import { AppointmentProductLog } from './entities/appointment-product-log.entity
 import { StockMovement } from '../stock/entities/stock-movement.entity';
 import { UpdateAppointmentDto } from './dto/update-appointment.dto'; // Importar UpdateAppointmentDto
 import { STATUS_COLORS } from './constants/colors';
+import { DataSource } from 'typeorm';
+
+const STATUS_TRANSITIONS: Record<AppointmentStatus, AppointmentStatus[]> = {
+  [AppointmentStatus.PENDING]: [AppointmentStatus.CONFIRMED, AppointmentStatus.CANCELLED, AppointmentStatus.NO_SHOW],
+  [AppointmentStatus.CONFIRMED]: [AppointmentStatus.CHECKED_IN, AppointmentStatus.CANCELLED, AppointmentStatus.NO_SHOW],
+  [AppointmentStatus.CHECKED_IN]: [AppointmentStatus.IN_PROGRESS, AppointmentStatus.CANCELLED, AppointmentStatus.NO_SHOW],
+  [AppointmentStatus.IN_PROGRESS]: [AppointmentStatus.COMPLETED, AppointmentStatus.CANCELLED],
+  [AppointmentStatus.COMPLETED]: [], // No further transitions after completed
+  [AppointmentStatus.CANCELLED]: [], // No further transitions after cancelled
+  [AppointmentStatus.NO_SHOW]: [], // No further transitions after no-show
+  [AppointmentStatus.RESCHEDULED]: [AppointmentStatus.PENDING, AppointmentStatus.CONFIRMED], // Can be rescheduled to pending or confirmed
+};
 
 
 @Injectable()
 export class AgendaService {
   constructor(
+    private readonly dataSource: DataSource,
     @InjectRepository(Appointment)
     private readonly appointmentRepo: Repository<Appointment>,
     @InjectRepository(AgendaConfig)
@@ -131,10 +144,15 @@ export class AgendaService {
       throw new NotFoundException(`Turno con ID ${id} no encontrado.`);
     }
 
-    // Validar que el currentUser tenga permisos para modificar este turno
-    // (ej. si es el profesional asignado, o el dueño de la agenda/cuenta)
-    // Esta lógica de autorización puede ser más compleja y residir en un Guard o aquí.
-    // Por ahora, asumimos que si lo encuentra, puede modificarlo (simplificación).
+    // Validar transición de estado
+    if (dto.status && dto.status !== appointment.status) {
+      const validTransitions = STATUS_TRANSITIONS[appointment.status];
+      if (!validTransitions || !validTransitions.includes(dto.status)) {
+        throw new BadRequestException(`Transición de estado inválida de ${appointment.status} a ${dto.status}.`);
+      }
+      appointment.status = dto.status;
+      appointment.color = STATUS_COLORS[dto.status] || appointment.color;
+    }
 
     if (dto.title) appointment.title = dto.title;
     if (dto.startDateTime) appointment.startDateTime = parseISO(dto.startDateTime);
@@ -189,61 +207,64 @@ export class AgendaService {
 
   // Book automático desde frontend (adaptar)
   async book(dto: BookAppointmentDto, userMakingBooking: User): Promise<Appointment> { 
-    const professionalUserId = userMakingBooking.id; // Asumimos que el profesional es el usuario actual por defecto para el 'book' simplificado.
-                                          // Si el 'book' es para otro profesional, el DTO necesitaría un professionalId.
-    
-   const config = await this.agendaConfigRepo.findOne({ where: { user: { id: professionalUserId } } });// Cambiado de user a professional
-    if (!config) throw new BadRequestException('No hay configuración de agenda para este profesional.');
+    return this.dataSource.transaction(async (manager) => {
+      const professionalUserId = dto.professionalId || userMakingBooking.id; 
+      
+      const config = await manager.findOne(AgendaConfig, { where: { user: { id: professionalUserId } } });
+      if (!config) throw new BadRequestException('No hay configuración de agenda para este profesional.');
 
-    const startDateTime = parseISO(`${dto.date}T${dto.time}`); // Ejemplo: "2025-05-15T08:15:00"
+      const startDateTime = parseISO(`${dto.date}T${dto.time}`); 
 
-    // Validaciones (día laboral, feriado, horario)
-    const dayOfWeek = startDateTime.toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase();
-    if (!config.workingDays.includes(dayOfWeek) && !config.allowBookingOnBlockedDays) {
-      throw new BadRequestException('Día no habilitado para turnos.');
-    }
-const isHoliday = await this.holidayRepo.findOne({ where: { date: dto.date, user: { id: professionalUserId } } });     // Filtrar por profesional
+      // Validaciones (día laboral, feriado, horario)
+      const dayOfWeek = startDateTime.toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase();
+      if (!config.workingDays.includes(dayOfWeek) && !config.allowBookingOnBlockedDays) {
+        throw new BadRequestException('Día no habilitado para turnos.');
+      }
+      const isHoliday = await manager.findOne(Holiday, { where: { date: dto.date, user: { id: professionalUserId } } });
+      if (isHoliday && !config.allowBookingOnBlockedDays) {
+        throw new BadRequestException('El día es feriado y no se permiten reservas.');
+      }
+      
+      const timeStr = format(startDateTime, 'HH:mm');
+      if (timeStr < config.startTime || timeStr >= config.endTime) {
+        throw new BadRequestException('Hora fuera del horario configurado para el profesional.');
+      }
 
-    if (isHoliday && !config.allowBookingOnBlockedDays) {
-      throw new BadRequestException('El día es feriado y no se permiten reservas.');
-    }
-    
-    const timeStr = format(startDateTime, 'HH:mm');
-    if (timeStr < config.startTime || timeStr >= config.endTime) {
-      throw new BadRequestException('Hora fuera del horario configurado para el profesional.');
-    }
+      // Calcular endDateTime
+      const endDateTime = addMinutes(startDateTime, config.slotDuration);
 
-    // Calcular endDateTime
-    const endDateTime = addMinutes(startDateTime, config.slotDuration);
+      // Verificar solapamientos
+      const overlapping = await manager.createQueryBuilder(Appointment, "appointment")
+        .where("appointment.professionalId = :professionalUserId", { professionalUserId })
+        .andWhere("((appointment.startDateTime < :endDateTime) AND (appointment.endDateTime > :startDateTime))", {
+            startDateTime,
+            endDateTime,
+        })
+        .getCount();
 
-    // Verificar solapamientos (simplificado, podría necesitar lógica más compleja para rangos)
-    const overlapping = await this.appointmentRepo
-      .createQueryBuilder("appointment")
-      .where("appointment.professionalId = :professionalUserId", { professionalUserId })
-      .andWhere("((appointment.startDateTime < :endDateTime) AND (appointment.endDateTime > :startDateTime))", {
-          startDateTime,
-          endDateTime,
-      })
-      .getCount();
+      if (overlapping > 0 && !config.overbookingAllowed) {
+        throw new BadRequestException('Ya hay un turno en ese horario para el profesional.');
+      }
 
-    if (overlapping > 0 && !config.overbookingAllowed) {
-      throw new BadRequestException('Ya hay un turno en ese horario para el profesional.');
-    }
+      const newAppointment = manager.create(Appointment, {
+        title: dto.title,
+        description: dto.description,
+        startDateTime,
+        endDateTime,
+        professional: { id: professionalUserId } as User, 
+        status: AppointmentStatus.CONFIRMED,
+        color: STATUS_COLORS.confirmed, 
+        allDay: false, 
+      });
 
-    const newAppointment = this.appointmentRepo.create({
-      title: dto.title,
-      description: dto.description, // Asumiendo que BookAppointmentDto también puede tener description
-      startDateTime,
-      endDateTime,
-      professional: { id: professionalUserId } as User, // Asignar el profesional
-      status: AppointmentStatus.CONFIRMED,// O 'pending' si requiere confirmación
-      color: STATUS_COLORS.confirmed, // Color por defecto para confirmado
-      allDay: false, // Asumir que no es de día completo por defecto para 'book'
-      // clientId podría venir del DTO si el usuario que reserva es un cliente logueado
-      // o si el profesional lo selecciona al crear.
+      if (dto.clientId) {
+        const client = await manager.findOne(Client, { where: { id: dto.clientId } });
+        if (!client) throw new NotFoundException(`Cliente con ID ${dto.clientId} no encontrado.`);
+        newAppointment.client = client;
+      }
+
+      return manager.save(Appointment, newAppointment);
     });
-
-    return this.appointmentRepo.save(newAppointment);
   }
 
   // Slots disponibles (adaptar)
@@ -254,7 +275,7 @@ async getAvailableSlots(date: string, professionalUserId: number) {
     const targetDate = parseISO(date);
     const workingDay = targetDate.toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase();
     
-    if (!config.workingDays.includes(workingDay) && !config.allowBookingOnBlockedDays) {
+    if (!config.workingDays.map(day => day.toLowerCase()).includes(workingDay) && !config.allowBookingOnBlockedDays) {
       return { date, slots: [], message: 'Día no laboral para el profesional.' };
     }
 

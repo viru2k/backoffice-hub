@@ -7,6 +7,7 @@ import { UserModule } from './user/user.module';
 import { SubscriptionModule } from './subscription/subscription.module';
 import { ServiceModule } from './service/service.module';
 import { AgendaModule } from './agenda/agenda.module';
+import { RolesModule } from './roles/roles.module';
 import { NotificationModule } from './notification/notification.module';
 import { ProductModule } from './product/product.module';
 import { StockModule } from './stock/stock.module';
@@ -14,6 +15,8 @@ import { ClientModule } from './client/client.module';
 import { SubscriptionPlanModule } from './subscription-plan/subscription-plan.module';
 import { SeedModule } from './seed/seed.module';
 import { FullFlowExtendedSeedService } from './seed/full-flow-extended.seed';
+import { PermissionsModule } from './permissions/permissions.module';
+
 
 @Module({
   imports: [
@@ -28,6 +31,8 @@ import { FullFlowExtendedSeedService } from './seed/full-flow-extended.seed';
     SubscriptionPlanModule,
     NotificationModule,
     SeedModule,
+    RolesModule,
+    PermissionsModule,
     TypeOrmModule.forRoot({
       type: 'mysql',
       host: process.env.DB_HOST,

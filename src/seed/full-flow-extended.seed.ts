@@ -70,6 +70,7 @@ export class FullFlowExtendedSeedService {
       { name: 'client:manage:group', description: 'Crear/editar/eliminar clientes del grupo' },
       { name: 'product:manage:group', description: 'Crear/editar/eliminar productos del grupo' },
       { name: 'user:manage:group', description: 'Crear/editar/eliminar sub-usuarios del grupo' },
+      { name: 'role:manage', description: 'Gestionar roles y sus permisos' },
     ];
     await this.permissionRepo.save(permissionsData);
     const allPermissions = await this.permissionRepo.find();

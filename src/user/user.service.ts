@@ -5,13 +5,15 @@ import { User } from './entities/user.entity';
 import * as bcrypt from 'bcryptjs';
 import { CreateSubUserDto } from './dto/create-subuser.dto';
 import { AdminUpdateUserDto } from './dto/admin-update-user.dto';
+import { Role } from 'src/roles/entities/role.entity';
 
 @Injectable()
 export class UserService {
     constructor(
         @InjectRepository(User)
         private readonly userRepository: Repository<User>,
-        
+        @InjectRepository(Role)
+        private readonly roleRepository: Repository<Role>,
       ) {}
 
 async createSubUser(dto: CreateSubUserDto, owner: User): Promise<User> {
@@ -50,34 +52,53 @@ async createSubUser(dto: CreateSubUserDto, owner: User): Promise<User> {
       owner: owner, // Asignar el admin como dueño
       isAdmin: false, // Los sub-usuarios no son admins
       isActive: true,
-      // Los permisos por defecto se toman de la entidad (ej. canManageClients: true)
+      roles: [], // Initialize roles for new sub-user
     });
 
     return this.userRepository.save(newUser);
   }
 
    async findById(id: number): Promise<User | undefined> {
-    return this.userRepository.findOneBy({ id });
+    return this.userRepository.findOne({
+      where: { id },
+      relations: ['roles', 'roles.permissions'],
+    });
   }
 
     async findUsersByOwner(ownerId: number): Promise<User[]> {
     return this.userRepository.find({
       where: { owner: { id: ownerId } },
+      relations: ['roles', 'roles.permissions'], // Ensure roles are loaded for group users
     });
   }
 
   async updateByAdmin(userIdToUpdate: number, adminId: number, dto: AdminUpdateUserDto): Promise<User> {
     const userToUpdate = await this.userRepository.findOne({
         where: { id: userIdToUpdate, owner: { id: adminId } },
-        relations: ['owner']
+        relations: ['owner', 'roles'] // Load roles for update
     });
 
     if (!userToUpdate) {
         throw new NotFoundException('Usuario no encontrado o no pertenece a su grupo.');
     }
 
-    // Actualizar campos permitidos
-    Object.assign(userToUpdate, dto); // El DTO contendrá campos como fullName, isActive, y los permisos (canManageClients, etc.)
+    // Update simple fields
+    if (dto.fullName !== undefined) userToUpdate.name = dto.fullName.split(' ')[0]; // Assuming first word is name
+    if (dto.fullName !== undefined) userToUpdate.lastName = dto.fullName.split(' ').slice(1).join(' '); // Rest is lastName
+    if (dto.isActive !== undefined) userToUpdate.isActive = dto.isActive;
+
+    // Handle role updates
+    if (dto.roleIds !== undefined) {
+      if (dto.roleIds.length > 0) {
+        const roles = await this.roleRepository.findByIds(dto.roleIds);
+        if (roles.length !== dto.roleIds.length) {
+          throw new BadRequestException('One or more role IDs are invalid.');
+        }
+        userToUpdate.roles = roles;
+      } else {
+        userToUpdate.roles = []; // Clear roles if an empty array is provided
+      }
+    }
 
     return this.userRepository.save(userToUpdate);
   }
@@ -89,17 +110,19 @@ async createSubUser(dto: CreateSubUserDto, owner: User): Promise<User> {
 
 
     async findByEmail(email: string): Promise<User> {
-        return this.userRepository.findOne({ where: { email } });
+        return this.userRepository.findOne({ where: { email }, relations: ['roles', 'roles.permissions'] });
       }
 
       async getSubUsers(ownerId: number) {
         return this.userRepository.find({
           where: { owner: { id: ownerId } },
+          relations: ['roles', 'roles.permissions'], // Ensure roles are loaded for sub-users
         });
       }
       async toggleSubUser(id: number, ownerId: number) {
         const user = await this.userRepository.findOne({
           where: { id, owner: { id: ownerId } },
+          relations: ['roles', 'roles.permissions'], // Ensure roles are loaded for toggle
         });
       
         if (!user) {
@@ -115,9 +138,9 @@ async createSubUser(dto: CreateSubUserDto, owner: User): Promise<User> {
     if (userIdToCheck === adminId) {
         return true;
     }
-    const user = await this.userRepository.findOneBy({
-      id: userIdToCheck,
-      owner: { id: adminId },
+    const user = await this.userRepository.findOne({
+      where: { id: userIdToCheck, owner: { id: adminId } },
+      relations: ['roles'], // Only need roles to check if user is in admin group
     });
     return !!user; 
   }

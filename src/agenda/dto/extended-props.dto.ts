@@ -25,4 +25,13 @@ export class ExtendedPropsDto {
 
    @ApiProperty({ description: 'ID del cliente', required: false })
    clientId?: number;
+
+   @ApiProperty({ description: 'ID del profesional asociado al turno', required: false })
+   professionalId?: number;
+
+   @ApiProperty({ description: 'ID del servicio asociado al turno', required: false })
+   serviceId?: number;
+
+   @ApiProperty({ description: 'ID de la sala asociada al turno', required: false })
+   roomId?: number;
 }

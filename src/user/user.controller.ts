@@ -55,7 +55,7 @@ export class UserController {
   }
 
   @Post('sub-user')
-  @Permissions('canManageUsers')
+  @Permissions('user:manage:group')
   @ApiOperation({ summary: 'Admin: Crear un nuevo sub-usuario en el grupo' })
   @ApiResponse({ status: 201, description: 'Sub-usuario creado.', type: UserResponseDto })
   async createSubUser(
@@ -67,7 +67,7 @@ export class UserController {
   }
 
   @Get('group')
-  @Permissions('canManageUsers') 
+  @Permissions('user:manage:group') 
   @ApiOperation({ summary: 'Admin: Listar todos los usuarios del grupo' })
   @ApiResponse({ status: 200, description: 'Lista de usuarios.', type: [UserResponseDto] })
   async getGroupUsers(@Request() req): Promise<UserResponseDto[]> {
@@ -76,7 +76,7 @@ export class UserController {
   }
 
   @Patch('sub-user/:id')
-  @Permissions('canManageUsers')
+  @Permissions('user:manage:group')
   @ApiOperation({ summary: 'Admin: Actualizar un sub-usuario (perfil, permisos, estado)' })
   @ApiResponse({ status: 200, description: 'Sub-usuario actualizado.', type: UserResponseDto })
   async updateSubUser(

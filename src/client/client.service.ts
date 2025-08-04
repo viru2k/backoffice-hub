@@ -4,7 +4,7 @@ import { Repository } from 'typeorm';
 import { Client, ClientStatus } from './entities/client.entity';
 import { CreateClientDto } from './dto/create-client.dto';
 import { UpdateClientDto } from './dto/update-client.dto';
-import { User } from 'src/user/entities/user.entity';
+import { User } from '../user/entities/user.entity';
 
 @Injectable()
 export class ClientService {

@@ -22,8 +22,8 @@ import {
 } from '@nestjs/swagger';
 import { User } from './entities/user.entity';
 import { AdminUpdateUserDto } from './dto/admin-update-user.dto';
-import { PermissionsGuard } from 'src/common/guards/permissions.guard';
-import { Permissions } from 'src/common/decorators/permissions.decorator';
+import { PermissionsGuard } from '../common/guards/permissions.guard';
+import { Permissions } from '../common/decorators/permissions.decorator';
 
 function mapUserToResponseDto(user: User): UserResponseDto {
   if (!user) return null;

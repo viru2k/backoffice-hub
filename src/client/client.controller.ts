@@ -21,9 +21,9 @@ import {
   import { AuthGuard } from '@nestjs/passport';
 import { ClientResponseDto } from './dto/client-response.dto';
 import { Client } from './entities/client.entity';
-import { UserService } from 'src/user/user.service';
-import { PermissionsGuard } from 'src/common/guards/permissions.guard'; 
-import { Permissions } from 'src/common/decorators/permissions.decorator';
+import { UserService } from '../user/user.service';
+import { PermissionsGuard } from '../common/guards/permissions.guard'; 
+import { Permissions } from '../common/decorators/permissions.decorator';
   
 function mapClientToDto(client: Client): ClientResponseDto {
   if (!client) return null;

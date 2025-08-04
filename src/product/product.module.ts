@@ -4,7 +4,7 @@ import { Product } from './entities/product.entity';
 import { ProductService } from './product.service';
 import { ProductController } from './product.controller';
 import { ProductPriceHistory } from './entities/product-price-history.entity';
-import { UserModule } from 'src/user/user.module';
+import { UserModule } from '../user/user.module';
 
 @Module({
   imports: [ TypeOrmModule.forFeature([Product, ProductPriceHistory]),

@@ -5,7 +5,7 @@ import { User } from './entities/user.entity';
 import * as bcrypt from 'bcryptjs';
 import { CreateSubUserDto } from './dto/create-subuser.dto';
 import { AdminUpdateUserDto } from './dto/admin-update-user.dto';
-import { Role } from 'src/roles/entities/role.entity';
+import { Role } from '../roles/entities/role.entity';
 
 @Injectable()
 export class UserService {

@@ -21,9 +21,9 @@ import { ApiBearerAuth, ApiOperation, ApiQuery, ApiResponse, ApiTags } from '@ne
 import { AuthGuard } from '@nestjs/passport';
 import { ProductResponseDto } from './dto/product-response.dto';
 import { Product } from './entities/product.entity'; // Importa la entidad Product
-import { UserService } from 'src/user/user.service';
-import { PermissionsGuard } from 'src/common/guards/permissions.guard'; 
-import { Permissions } from 'src/common/decorators/permissions.decorator'; 
+import { UserService } from '../user/user.service';
+import { PermissionsGuard } from '../common/guards/permissions.guard'; 
+import { Permissions } from '../common/decorators/permissions.decorator'; 
 
 // Función auxiliar para mapear la entidad Product a ProductResponseDto
 function mapProductToResponseDto(product: Product): ProductResponseDto {

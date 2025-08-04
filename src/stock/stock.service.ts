@@ -3,8 +3,8 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { StockMovement } from './entities/stock-movement.entity';
 import { CreateStockMovementDto } from './dto/create-stock-movement.dto';
-import { Product } from 'src/product/entities/product.entity';
-import { User } from 'src/user/entities/user.entity';
+import { Product } from '../product/entities/product.entity';
+import { User } from '../user/entities/user.entity';
 import { StockSummaryResponseDto } from './dto/stock-summary-response.dto';
 
 @Injectable()

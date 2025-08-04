@@ -2,12 +2,12 @@ import { Injectable, Logger } from '@nestjs/common'; // Logger añadido para dep
 import { Cron, CronExpression } from '@nestjs/schedule'; // CronExpression para mejor semántica
 import { InjectRepository } from '@nestjs/typeorm';
 import { addMinutes, format, isAfter, parseISO } from 'date-fns'; // parseISO no es estrictamente necesario aquí si la fecha ya es objeto Date
-import { Appointment } from 'src/agenda/entities/appointment.entity';
-import { AgendaConfig } from 'src/agenda/entities/agenda-config.entity';
-import { NotificationService } from 'src/notification/notification.service';
-import { FailedNotification } from 'src/notification/entities/failed-notification.entity';
+import { Appointment } from '../agenda/entities/appointment.entity';
+import { AgendaConfig } from '../agenda/entities/agenda-config.entity';
+import { NotificationService } from '../notification/notification.service';
+import { FailedNotification } from '../notification/entities/failed-notification.entity';
 import { Between, In, IsNull, LessThanOrEqual, MoreThanOrEqual, Repository } from 'typeorm'; // Importaciones de TypeORM
-import { User } from 'src/user/entities/user.entity'; // Importar User
+import { User } from '../user/entities/user.entity'; // Importar User
 
 @Injectable()
 export class ReminderService {

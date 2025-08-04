@@ -38,9 +38,9 @@ import { AppointmentProductLogResponseDto } from './dto/appointment-product-log-
 
 import { Appointment, AppointmentStatus } from './entities/appointment.entity';
 import { STATUS_COLORS } from './constants/colors';
-import { UserService } from 'src/user/user.service';
-import { PermissionsGuard } from 'src/common/guards/permissions.guard'; 
-import { Permissions } from 'src/common/decorators/permissions.decorator';
+import { UserService } from '../user/user.service';
+import { PermissionsGuard } from '../common/guards/permissions.guard'; 
+import { Permissions } from '../common/decorators/permissions.decorator';
 
 
 // Esta función convierte la entidad Appointment a AppointmentResponseDto

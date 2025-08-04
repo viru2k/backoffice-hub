@@ -2,20 +2,20 @@ import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { SeedService } from './seed.service';
 import { FullFlowExtendedSeedService } from './full-flow-extended.seed';
-import { SubscriptionPlan } from 'src/subscription-plan/entities/subscription-plan.entity';
-import { SubscriptionPlanFeature } from 'src/subscription-plan/entities/subscription-plan-feature.entity';
-import { User } from 'src/user/entities/user.entity';
-import { Subscription } from 'src/subscription/entities/subscription.entity';
-import { Product } from 'src/product/entities/product.entity';
-import { ProductPriceHistory } from 'src/product/entities/product-price-history.entity';
-import { StockMovement } from 'src/stock/entities/stock-movement.entity';
-import { Appointment } from 'src/agenda/entities/appointment.entity';
-import { AppointmentProductLog } from 'src/agenda/entities/appointment-product-log.entity';
-import { Client } from 'src/client/entities/client.entity';
-import { Holiday } from 'src/agenda/entities/holiday.entity';
-import { AgendaConfig } from 'src/agenda/entities/agenda-config.entity';
-import { Permission } from 'src/permissions/entities/permission.entity'; 
-import { Role } from 'src/roles/entities/role.entity';
+import { SubscriptionPlan } from '../subscription-plan/entities/subscription-plan.entity';
+import { SubscriptionPlanFeature } from '../subscription-plan/entities/subscription-plan-feature.entity';
+import { User } from '../user/entities/user.entity';
+import { Subscription } from '../subscription/entities/subscription.entity';
+import { Product } from '../product/entities/product.entity';
+import { ProductPriceHistory } from '../product/entities/product-price-history.entity';
+import { StockMovement } from '../stock/entities/stock-movement.entity';
+import { Appointment } from '../agenda/entities/appointment.entity';
+import { AppointmentProductLog } from '../agenda/entities/appointment-product-log.entity';
+import { Client } from '../client/entities/client.entity';
+import { Holiday } from '../agenda/entities/holiday.entity';
+import { AgendaConfig } from '../agenda/entities/agenda-config.entity';
+import { Permission } from '../permissions/entities/permission.entity'; 
+import { Role } from '../roles/entities/role.entity';
 
 @Module({
  imports: [

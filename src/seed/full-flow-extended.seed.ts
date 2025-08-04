@@ -1,22 +1,22 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
-import { SubscriptionPlan } from 'src/subscription-plan/entities/subscription-plan.entity';
-import { Subscription } from 'src/subscription/entities/subscription.entity';
-import { User } from 'src/user/entities/user.entity';
-import { Product } from 'src/product/entities/product.entity';
+import { SubscriptionPlan } from '../subscription-plan/entities/subscription-plan.entity';
+import { Subscription } from '../subscription/entities/subscription.entity';
+import { User } from '../user/entities/user.entity';
+import { Product } from '../product/entities/product.entity';
 import { ProductPriceHistory } from './../product/entities/product-price-history.entity';
-import { StockMovement, StockMovementType } from 'src/stock/entities/stock-movement.entity';
-import { Appointment, AppointmentStatus } from 'src/agenda/entities/appointment.entity';
-import { AppointmentProductLog } from 'src/agenda/entities/appointment-product-log.entity';
-import { Client, ClientStatus } from 'src/client/entities/client.entity';
-import { Holiday } from 'src/agenda/entities/holiday.entity';
-import { AgendaConfig } from 'src/agenda/entities/agenda-config.entity';
-import { Role } from 'src/roles/entities/role.entity';
-import { Permission } from 'src/permissions/entities/permission.entity';
+import { StockMovement, StockMovementType } from '../stock/entities/stock-movement.entity';
+import { Appointment, AppointmentStatus } from '../agenda/entities/appointment.entity';
+import { AppointmentProductLog } from '../agenda/entities/appointment-product-log.entity';
+import { Client, ClientStatus } from '../client/entities/client.entity';
+import { Holiday } from '../agenda/entities/holiday.entity';
+import { AgendaConfig } from '../agenda/entities/agenda-config.entity';
+import { Role } from '../roles/entities/role.entity';
+import { Permission } from '../permissions/entities/permission.entity';
 import * as bcrypt from 'bcryptjs';
 import { addMinutes } from 'date-fns';
-import { SubscriptionPlanFeature } from 'src/subscription-plan/entities/subscription-plan-feature.entity';
+import { SubscriptionPlanFeature } from '../subscription-plan/entities/subscription-plan-feature.entity';
 
 @Injectable()
 export class FullFlowExtendedSeedService {

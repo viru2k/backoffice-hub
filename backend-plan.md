@@ -33,21 +33,21 @@ Este documento detalla el análisis del backend y el plan de acción para mejora
     -   **Descripción**: Registra un nuevo administrador de cuenta, le crea una suscripción y devuelve un token de acceso.
     -   **Checklist**:
         -   [x] **Validación**: La lógica parece correcta. El `AuthService` maneja la creación del usuario y la suscripción.
-        -   [ ] **Test**: Crear un test e2e que simule el registro completo, verificando que el usuario y la suscripción se creen en la BD y que se devuelva un token válido.
+        -   [x] **Test**: Crear un test e2e que simule el registro completo, verificando que el usuario y la suscripción se creen en la BD y que se devuelva un token válido.
         -   [ ] **Seed**: El `seed` ya crea usuarios administradores, por lo que no es necesario actualizarlo para este endpoint.
 
 -   `POST /login`
     -   **Descripción**: Autentica a un usuario con email y contraseña y devuelve un token de acceso.
     -   **Checklist**:
         -   [x] **Validación**: La `LocalStrategy` y el `AuthService` manejan la validación correctamente, incluyendo el estado `isActive` del usuario.
-        -   [ ] **Test**: Crear un test e2e para el login con credenciales válidas, inválidas y de un usuario inactivo.
+        -   [x] **Test**: Crear un test e2e para el login con credenciales válidas, inválidas y de un usuario inactivo.
         -   [ ] **Seed**: El `seed` provee múltiples usuarios con diferentes roles para probar el login.
 
 -   `GET /profile`
     -   **Descripción**: Devuelve la información del usuario autenticado, incluyendo roles y permisos computados.
     -   **Checklist**:
         -   [x] **Validación**: El mapeo a `ProfileResponseDto` es correcto y calcula los permisos booleanos (`canManage...`) de forma eficiente.
-        -   [ ] **Test**: Crear un test e2e que, usando un token válido, verifique que la información del perfil es correcta para diferentes roles (admin, profesional, secretaria).
+        -   [x] **Test**: Crear un test e2e que, usando un token válido, verifique que la información del perfil es correcta para diferentes roles (admin, profesional, secretaria).
         -   [ ] **Seed**: El `seed` es adecuado para probar este endpoint con diferentes perfiles.
 
 ---
@@ -68,13 +68,13 @@ Este documento detalla el análisis del backend y el plan de acción para mejora
     -   **Descripción**: Endpoint de conveniencia para obtener el perfil propio. Similar a `/auth/profile` pero con un DTO más simple.
     -   **Checklist**:
         -   [x] **Validación**: Lógica simple y correcta.
-        -   [ ] **Test**: Test e2e simple para verificar que devuelve el usuario correcto.
+        -   [x] **Test**: Test e2e simple para verificar que devuelve el usuario correcto.
 
 -   `POST /sub-user`
     -   **Descripción**: Permite a un admin crear un sub-usuario.
     -   **Checklist**:
         -   [x] **Validación**: El `UserService` contiene la lógica para verificar el límite de usuarios del plan de suscripción. Esto es una validación de negocio crítica y está bien implementada.
-        -   [ ] **Test**: Crear test e2e para:
+        -   [x] **Test**: Crear test e2e para:
             -   Creación exitosa de un sub-usuario por un admin.
             -   Intento de creación por un no-admin (debería fallar con 403).
             -   Intento de creación superando el límite del plan (debería fallar con 400).
@@ -84,7 +84,7 @@ Este documento detalla el análisis del backend y el plan de acción para mejora
     -   **Descripción**: Permite a un admin listar todos los usuarios de su grupo.
     -   **Checklist**:
         -   [x] **Validación**: Lógica correcta.
-        -   [ ] **Test**: Test e2e para verificar que un admin obtiene la lista de sus sub-usuarios y que un no-admin no puede acceder.
+        -   [x] **Test**: Test e2e para verificar que un admin obtiene la lista de sus sub-usuarios y que un no-admin no puede acceder.
 
 -   `PATCH /sub-user/:id`
     -   **Descripción**: Permite a un admin actualizar el nombre, estado y roles de un sub-usuario.

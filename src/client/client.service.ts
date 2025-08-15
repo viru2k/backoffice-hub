@@ -51,4 +51,11 @@ async update(id: number, updateClientDto: UpdateClientDto, requestingUser: User)
     const client = await this.findOne(id, requestingUser, requestingUser.id);
     await this.clientRepository.remove(client);
   }
+
+  async findAllByGroup(adminId: number): Promise<Client[]> {
+    return this.clientRepository.createQueryBuilder('client')
+      .leftJoinAndSelect('client.owner', 'owner')
+      .where('owner.id = :adminId OR owner.owner_id = :adminId', { adminId })
+      .getMany();
+  }
 }

@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Alerta de Seguridad - Orbyt</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            background-color: #f4f4f4;
+            margin: 0;
+            padding: 0;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background-color: #ffffff;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        .header {
+            background: linear-gradient(135deg, #fd7e14 0%, #e55100 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 28px;
+            font-weight: 300;
+        }
+        .content {
+            padding: 40px 30px;
+        }
+        .greeting {
+            font-size: 18px;
+            color: #333;
+            margin-bottom: 20px;
+        }
+        .message {
+            color: #666;
+            line-height: 1.6;
+            margin-bottom: 20px;
+        }
+        .alert-box {
+            background-color: #fff3cd;
+            border: 1px solid #ffeeba;
+            border-radius: 5px;
+            padding: 20px;
+            margin: 25px 0;
+            color: #856404;
+        }
+        .security-tips {
+            background-color: #d4edda;
+            border: 1px solid #c3e6cb;
+            border-radius: 5px;
+            padding: 20px;
+            margin: 25px 0;
+            color: #155724;
+        }
+        .contact-button {
+            display: inline-block;
+            background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+            color: white;
+            padding: 15px 30px;
+            text-decoration: none;
+            border-radius: 5px;
+            font-weight: bold;
+            margin: 20px 0;
+        }
+        .contact-button:hover {
+            opacity: 0.9;
+        }
+        .footer {
+            background-color: #f8f9fa;
+            padding: 20px 30px;
+            text-align: center;
+            color: #888;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚨 Alerta de Seguridad</h1>
+        </div>
+        
+        <div class="content">
+            <div class="greeting">
+                Hola {{firstName}},
+            </div>
+            
+            <div class="message">
+                Te notificamos que se han detectado múltiples intentos fallidos de inicio de sesión en tu cuenta de Orbyt.
+            </div>
+            
+            <div class="alert-box">
+                <strong>⚠️ Detalles del Intento:</strong><br>
+                • <strong>Intentos fallidos:</strong> {{failedAttempts}}<br>
+                • <strong>Último intento:</strong> {{lastAttemptTime}}<br>
+                • <strong>Dirección IP:</strong> {{ipAddress}}
+            </div>
+            
+            <div class="message">
+                <strong>¿Fuiste tú?</strong><br>
+                Si reconoces estos intentos de acceso, puedes ignorar este correo. Sin embargo, si no fuiste tú, tu cuenta podría estar en riesgo.
+            </div>
+            
+            <div class="security-tips">
+                <strong>🛡️ Recomendaciones de Seguridad:</strong><br>
+                • Cambia tu contraseña inmediatamente<br>
+                • Verifica que no haya actividad sospechosa en tu cuenta<br>
+                • Considera activar la autenticación de dos factores<br>
+                • No compartas tus credenciales con nadie<br>
+                • Usa contraseñas únicas y seguras
+            </div>
+            
+            <div class="message">
+                <strong>Acción Inmediata Requerida:</strong><br>
+                Si no reconoces estos intentos de acceso, contacta inmediatamente a nuestro equipo de seguridad.
+            </div>
+            
+            <div style="text-align: center;">
+                <a href="mailto:{{supportEmail}}" class="contact-button">
+                    Reportar Actividad Sospechosa
+                </a>
+            </div>
+            
+            <div class="message">
+                <strong>Email de seguridad:</strong> {{supportEmail}}
+            </div>
+        </div>
+        
+        <div class="footer">
+            <p>
+                Este correo fue enviado automáticamente desde Orbyt.<br>
+                Por favor, no respondas a este mensaje.
+            </p>
+            <p>
+                © {{year}} Orbyt. Todos los derechos reservados.
+            </p>
+        </div>
+    </div>
+</body>
+</html>

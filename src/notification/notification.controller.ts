@@ -1,5 +1,6 @@
 import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from "@nestjs/swagger";
 import { NotificationService } from "./notification.service";
+import { NotificationGateway } from "./notification.gateway";
 import { AuthGuard } from "@nestjs/passport";
 import { Body, Controller, Get, NotFoundException, Param, Patch, Post, Request, UseGuards } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
@@ -14,8 +15,12 @@ import { NotificationResponseDto } from "./dto/notification-response.dto";
 @UseGuards(AuthGuard('jwt'))
 @Controller('notifications')
 export class NotificationController {
-  constructor(private readonly notificationService: NotificationService, @InjectRepository(FailedNotification)
-  private readonly failedNotificationRepo: Repository<FailedNotification>,) {}
+  constructor(
+    private readonly notificationService: NotificationService, 
+    private readonly notificationGateway: NotificationGateway,
+    @InjectRepository(FailedNotification)
+    private readonly failedNotificationRepo: Repository<FailedNotification>,
+  ) {}
 
   @Get()
   @ApiOperation({ summary: 'Obtener todas las notificaciones del usuario' })
@@ -75,6 +80,54 @@ getUnread(@Request() req) {
 @ApiResponse({ type: NotificationSummaryResponseDto })
 getSummary(@Request() req) {
   return this.notificationService.getSummary(req.user.id);
+}
+
+@Post('test-websocket')
+@ApiOperation({ summary: 'Enviar notificación de prueba por WebSocket' })
+@ApiResponse({ schema: { example: { message: 'Notificación WebSocket enviada', stats: {} } } })
+async testWebSocket(@Request() req, @Body() body: { message?: string }) {
+  const notification = {
+    type: 'test_notification',
+    title: 'Notificación de Prueba',
+    message: body.message || 'Esta es una notificación de prueba enviada por WebSocket',
+    timestamp: new Date().toISOString(),
+    userId: req.user.id,
+  };
+
+  await this.notificationGateway.sendNotificationToUser(req.user.id, notification);
+  
+  return {
+    message: 'Notificación WebSocket enviada exitosamente',
+    notification,
+    stats: this.notificationGateway.getConnectionStats(),
+  };
+}
+
+@Post('test-broadcast')
+@ApiOperation({ summary: 'Enviar notificación broadcast de prueba por WebSocket' })
+@ApiResponse({ schema: { example: { message: 'Broadcast enviado', stats: {} } } })
+async testBroadcast(@Request() req, @Body() body: { message?: string }) {
+  const notification = {
+    type: 'broadcast_test',
+    title: 'Notificación Broadcast',
+    message: body.message || 'Esta es una notificación broadcast de prueba',
+    timestamp: new Date().toISOString(),
+    from: req.user.email,
+  };
+
+  this.notificationGateway.sendBroadcastNotification(notification);
+  
+  return {
+    message: 'Notificación broadcast enviada exitosamente',
+    notification,
+    stats: this.notificationGateway.getConnectionStats(),
+  };
+}
+
+@Get('websocket-stats')
+@ApiOperation({ summary: 'Obtener estadísticas de conexiones WebSocket' })
+getWebSocketStats() {
+  return this.notificationGateway.getConnectionStats();
 }
 
 

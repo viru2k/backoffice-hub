@@ -16,6 +16,10 @@ import { SubscriptionPlanModule } from './subscription-plan/subscription-plan.mo
 import { SeedModule } from './seed/seed.module';
 import { FullFlowExtendedSeedService } from './seed/full-flow-extended.seed';
 import { PermissionsModule } from './permissions/permissions.module';
+import { UploadModule } from './upload/upload.module';
+import { EmailModule } from './email/email.module';
+import { ConsultationModule } from './consultation/consultation.module';
+import { InvoiceModule } from './invoice/invoice.module';
 
 
 @Module({
@@ -33,6 +37,10 @@ import { PermissionsModule } from './permissions/permissions.module';
     SeedModule,
     RolesModule,
     PermissionsModule,
+    UploadModule,
+    EmailModule,
+    ConsultationModule,
+    InvoiceModule,
     TypeOrmModule.forRoot({
       type: 'mysql',
       host: process.env.DB_HOST,

@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cuenta Bloqueada - Orbyt</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            background-color: #f4f4f4;
+            margin: 0;
+            padding: 0;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background-color: #ffffff;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        .header {
+            background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 28px;
+            font-weight: 300;
+        }
+        .content {
+            padding: 40px 30px;
+        }
+        .greeting {
+            font-size: 18px;
+            color: #333;
+            margin-bottom: 20px;
+        }
+        .message {
+            color: #666;
+            line-height: 1.6;
+            margin-bottom: 20px;
+        }
+        .alert-box {
+            background-color: #fff3cd;
+            border: 1px solid #ffeeba;
+            border-radius: 5px;
+            padding: 20px;
+            margin: 25px 0;
+            color: #856404;
+        }
+        .info-box {
+            background-color: #d1ecf1;
+            border: 1px solid #bee5eb;
+            border-radius: 5px;
+            padding: 20px;
+            margin: 25px 0;
+            color: #0c5460;
+        }
+        .contact-button {
+            display: inline-block;
+            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+            color: white;
+            padding: 15px 30px;
+            text-decoration: none;
+            border-radius: 5px;
+            font-weight: bold;
+            margin: 20px 0;
+        }
+        .contact-button:hover {
+            opacity: 0.9;
+        }
+        .footer {
+            background-color: #f8f9fa;
+            padding: 20px 30px;
+            text-align: center;
+            color: #888;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔒 Cuenta Bloqueada</h1>
+        </div>
+        
+        <div class="content">
+            <div class="greeting">
+                Hola {{firstName}},
+            </div>
+            
+            <div class="message">
+                Tu cuenta de Orbyt ha sido temporalmente bloqueada debido a múltiples intentos fallidos de inicio de sesión.
+            </div>
+            
+            <div class="alert-box">
+                <strong>⚠️ Detalles del Bloqueo:</strong><br>
+                • <strong>Intentos fallidos:</strong> {{failedAttempts}}<br>
+                • <strong>Bloqueado el:</strong> {{lockoutTime}}<br>
+                • <strong>Se desbloqueará el:</strong> {{unlockTime}}
+            </div>
+            
+            <div class="message">
+                <strong>¿Por qué fue bloqueada mi cuenta?</strong><br>
+                Como medida de seguridad, bloqueamos temporalmente las cuentas después de varios intentos fallidos de inicio de sesión para proteger tu información.
+            </div>
+            
+            <div class="info-box">
+                <strong>🛡️ Qué puedes hacer:</strong><br>
+                • Espera hasta la hora de desbloqueo automático<br>
+                • Verifica que estés usando la contraseña correcta<br>
+                • Si olvidaste tu contraseña, usa la opción "Recuperar contraseña"<br>
+                • Si crees que alguien más está intentando acceder a tu cuenta, contacta inmediatamente a soporte
+            </div>
+            
+            <div class="message">
+                Si necesitas ayuda inmediata o crees que este bloqueo es un error, contacta a nuestro equipo de soporte:
+            </div>
+            
+            <div style="text-align: center;">
+                <a href="mailto:{{supportEmail}}" class="contact-button">
+                    Contactar Soporte
+                </a>
+            </div>
+            
+            <div class="message">
+                <strong>Email de soporte:</strong> {{supportEmail}}
+            </div>
+        </div>
+        
+        <div class="footer">
+            <p>
+                Este correo fue enviado automáticamente desde Orbyt.<br>
+                Por favor, no respondas a este mensaje.
+            </p>
+            <p>
+                © {{year}} Orbyt. Todos los derechos reservados.
+            </p>
+        </div>
+    </div>
+</body>
+</html>

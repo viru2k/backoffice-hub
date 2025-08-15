@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bienvenido a Orbyt</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            background-color: #f4f4f4;
+            margin: 0;
+            padding: 0;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background-color: #ffffff;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 40px 30px;
+            text-align: center;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 32px;
+            font-weight: 300;
+        }
+        .header p {
+            margin: 10px 0 0 0;
+            font-size: 16px;
+            opacity: 0.9;
+        }
+        .content {
+            padding: 40px 30px;
+        }
+        .greeting {
+            font-size: 20px;
+            color: #333;
+            margin-bottom: 25px;
+        }
+        .message {
+            color: #666;
+            line-height: 1.6;
+            margin-bottom: 25px;
+        }
+        .credentials-box {
+            background-color: #f8f9fa;
+            border: 2px solid #667eea;
+            border-radius: 8px;
+            padding: 25px;
+            margin: 30px 0;
+            text-align: center;
+        }
+        .credentials-box h3 {
+            margin: 0 0 15px 0;
+            color: #333;
+        }
+        .credential-item {
+            margin: 10px 0;
+            padding: 10px;
+            background-color: white;
+            border-radius: 4px;
+            border: 1px solid #e9ecef;
+        }
+        .credential-label {
+            font-weight: bold;
+            color: #495057;
+        }
+        .credential-value {
+            color: #007bff;
+            font-family: 'Courier New', monospace;
+            word-break: break-all;
+        }
+        .login-button {
+            display: inline-block;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 15px 35px;
+            text-decoration: none;
+            border-radius: 25px;
+            font-weight: bold;
+            margin: 25px 0;
+            font-size: 16px;
+        }
+        .login-button:hover {
+            opacity: 0.9;
+        }
+        .security-notice {
+            background-color: #fff3cd;
+            border: 1px solid #ffeeba;
+            border-radius: 5px;
+            padding: 20px;
+            margin: 25px 0;
+            color: #856404;
+        }
+        .features-list {
+            background-color: #e7f3ff;
+            border-radius: 8px;
+            padding: 25px;
+            margin: 25px 0;
+        }
+        .features-list h3 {
+            margin: 0 0 15px 0;
+            color: #0056b3;
+        }
+        .features-list ul {
+            margin: 0;
+            padding-left: 20px;
+        }
+        .features-list li {
+            margin: 8px 0;
+            color: #495057;
+        }
+        .footer {
+            background-color: #f8f9fa;
+            padding: 25px 30px;
+            text-align: center;
+            color: #888;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎉 ¡Bienvenido a Orbyt!</h1>
+            <p>Tu plataforma de gestión está lista</p>
+        </div>
+        
+        <div class="content">
+            <div class="greeting">
+                ¡Hola {{firstName}}!
+            </div>
+            
+            <div class="message">
+                Nos complace darte la bienvenida a Orbyt, tu nueva plataforma de gestión integral. 
+                Tu cuenta ha sido creada exitosamente y está lista para usar.
+            </div>
+            
+            <div class="credentials-box">
+                <h3>🔑 Tus Credenciales de Acceso</h3>
+                
+                <div class="credential-item">
+                    <div class="credential-label">Email:</div>
+                    <div class="credential-value">{{email}}</div>
+                </div>
+                
+                {{#if temporaryPassword}}
+                <div class="credential-item">
+                    <div class="credential-label">Contraseña temporal:</div>
+                    <div class="credential-value">{{temporaryPassword}}</div>
+                </div>
+                {{/if}}
+            </div>
+            
+            <div style="text-align: center;">
+                <a href="{{loginLink}}" class="login-button">
+                    Acceder a Mi Cuenta
+                </a>
+            </div>
+            
+            {{#if temporaryPassword}}
+            <div class="security-notice">
+                <strong>🔒 Importante - Seguridad:</strong><br>
+                Por tu seguridad, te recomendamos cambiar tu contraseña temporal en tu primer inicio de sesión. 
+                Ve a tu perfil y selecciona "Cambiar contraseña" después de iniciar sesión.
+            </div>
+            {{/if}}
+            
+            <div class="features-list">
+                <h3>🚀 ¿Qué puedes hacer con Orbyt?</h3>
+                <ul>
+                    <li>📅 Gestionar tu agenda y citas</li>
+                    <li>👥 Administrar clientes y usuarios</li>
+                    <li>📦 Controlar inventario y stock</li>
+                    <li>💰 Manejar servicios y precios</li>
+                    <li>📊 Ver reportes y estadísticas</li>
+                    <li>🔔 Recibir notificaciones en tiempo real</li>
+                </ul>
+            </div>
+            
+            <div class="message">
+                Si tienes alguna pregunta o necesitas ayuda para comenzar, nuestro equipo de soporte está aquí para ayudarte.
+            </div>
+            
+            <div class="message">
+                ¡Esperamos que disfrutes usando Orbyt para hacer crecer tu negocio!
+            </div>
+        </div>
+        
+        <div class="footer">
+            <p>
+                <strong>¿Necesitas ayuda?</strong><br>
+                Visita nuestro centro de ayuda o contacta a soporte
+            </p>
+            <p>
+                Este correo fue enviado automáticamente desde Orbyt.<br>
+                Por favor, no respondas a este mensaje.
+            </p>
+            <p>
+                © {{year}} Orbyt. Todos los derechos reservados.
+            </p>
+        </div>
+    </div>
+</body>
+</html>

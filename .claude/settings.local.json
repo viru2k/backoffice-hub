@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm run start:*)",
+      "Bash(curl:*)",
+      "Bash(taskkill:*)",
+      "Bash(npm run seed:full-flow:*)",
+      "Bash(npm run seed:fullflow:*)",
+      "Bash(npm run:*)",
+      "Bash(pkill:*)",
+      "Bash(npx ts-node:*)"
+    ],
+    "deny": []
+  }
+}

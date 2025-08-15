@@ -3,7 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { User } from './entities/user.entity';
 import * as bcrypt from 'bcryptjs';
-import { CreateSubUserDto } from './dto/create-subuser.dto';
+import { CreateSubUserDto } from './dto/create-sub-user.dto';
 import { AdminUpdateUserDto } from './dto/admin-update-user.dto';
 import { Role } from '../roles/entities/role.entity';
 
@@ -72,6 +72,23 @@ async createSubUser(dto: CreateSubUserDto, owner: User): Promise<User> {
     });
   }
 
+  async findAllUsersInGroup(adminId: number): Promise<User[]> {
+    // Get the admin user
+    const admin = await this.userRepository.findOne({
+      where: { id: adminId },
+      relations: ['roles', 'roles.permissions'],
+    });
+    
+    // Get sub-users
+    const subUsers = await this.userRepository.find({
+      where: { owner: { id: adminId } },
+      relations: ['roles', 'roles.permissions'],
+    });
+
+    // Return admin first, then sub-users
+    return admin ? [admin, ...subUsers] : subUsers;
+  }
+
   async updateByAdmin(userIdToUpdate: number, adminId: number, dto: AdminUpdateUserDto): Promise<User> {
     const userToUpdate = await this.userRepository.findOne({
         where: { id: userIdToUpdate, owner: { id: adminId } },
@@ -88,10 +105,11 @@ async createSubUser(dto: CreateSubUserDto, owner: User): Promise<User> {
     if (dto.isActive !== undefined) userToUpdate.isActive = dto.isActive;
 
     // Handle role updates
-    if (dto.roleIds !== undefined) {
-      if (dto.roleIds.length > 0) {
-        const roles = await this.roleRepository.findByIds(dto.roleIds);
-        if (roles.length !== dto.roleIds.length) {
+    if (dto.roles !== undefined) {
+      if (dto.roles.length > 0) {
+        const roleIds = dto.roles.map(role => role.id);
+        const roles = await this.roleRepository.findByIds(roleIds);
+        if (roles.length !== roleIds.length) {
           throw new BadRequestException('One or more role IDs are invalid.');
         }
         userToUpdate.roles = roles;

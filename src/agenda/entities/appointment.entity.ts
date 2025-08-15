@@ -8,6 +8,8 @@ import {
 } from 'typeorm';
 import { User } from './../../user/entities/user.entity'; // Asegúrate que la ruta sea correcta
 import { Client } from './../../client/entities/client.entity'; // Asegúrate que la ruta sea correcta
+import { Service } from './service.entity';
+import { Room } from './room.entity';
 
 
 export enum AppointmentStatus {
@@ -69,8 +71,14 @@ export class Appointment {
   })
   status: AppointmentStatus;
   
+  @ManyToOne(() => Service, { nullable: true })
+  service?: Service;
+
   @Column({ nullable: true, comment: 'ID del servicio asociado (si aplica)' })
   serviceId?: number; 
+
+  @ManyToOne(() => Room, { nullable: true })
+  room?: Room;
 
   @Column({ nullable: true, comment: 'ID de la sala o recurso físico (si aplica)' })
   roomId?: number;

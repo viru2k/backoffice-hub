@@ -1,4 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
+import { RoleResponseDto } from '../../roles/dto/role-response.dto';
 
 export class UserResponseDto {
   @ApiProperty()
@@ -21,4 +22,7 @@ export class UserResponseDto {
 
   @ApiProperty()
   updatedAt: string;
+
+  @ApiProperty({ type: [RoleResponseDto], description: 'Roles asignados al usuario' })
+  roles: RoleResponseDto[];
 }

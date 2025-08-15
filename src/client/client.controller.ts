@@ -49,7 +49,7 @@ function mapClientToDto(client: Client): ClientResponseDto {
     constructor(private readonly clientService: ClientService,  private readonly userService: UserService) {}
   
  @Post()
- @Permissions('canManageClients')
+ @Permissions('client:manage:group')
   @ApiOperation({ summary: 'Crear un nuevo cliente' })
   @ApiResponse({ status: 201, type: ClientResponseDto })
   async create(@Body() createClientDto: CreateClientDto, @Request() req): Promise<ClientResponseDto> {
@@ -57,6 +57,21 @@ function mapClientToDto(client: Client): ClientResponseDto {
     return mapClientToDto(client);
   }
   
+  @Get('group')
+  @Permissions('client:manage:group')
+  @ApiOperation({ summary: 'Listar todos los clientes del grupo (admin y sub-usuarios)' })
+  @ApiResponse({ status: 200, type: [ClientResponseDto] })
+  async findGroupClients(@Request() req): Promise<ClientResponseDto[]> {
+    const requestingUser = req.user;
+    
+    if (!requestingUser.isAdmin) {
+      throw new ForbiddenException('Solo los administradores pueden ver todos los clientes del grupo.');
+    }
+
+    const clients = await this.clientService.findAllByGroup(requestingUser.id);
+    return clients.map(mapClientToDto);
+  }
+
   @Get()
   @ApiOperation({ summary: 'Listar clientes (admin puede ver los de un sub-usuario)' })
   @ApiQuery({ name: 'userId', required: false, type: Number, description: 'Admin: ID del usuario cuyos clientes se quieren ver' })
@@ -109,7 +124,7 @@ function mapClientToDto(client: Client): ClientResponseDto {
   }
   
 @Patch(':id')
-@Permissions('canManageClients')
+@Permissions('client:manage:group')
 @ApiOperation({ summary: 'Actualizar un cliente' })
 @ApiResponse({ status: 200, type: ClientResponseDto })
   async update(@Param('id', ParseIntPipe) id: number, @Body() updateClientDto: UpdateClientDto, @Request() req): Promise<ClientResponseDto> {
@@ -118,7 +133,7 @@ function mapClientToDto(client: Client): ClientResponseDto {
   }
 
   @Delete(':id')
-  @Permissions('canManageClients')
+  @Permissions('client:manage:group')
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Eliminar un cliente' })
   @ApiResponse({ status: 204, description: 'Cliente eliminado exitosamente.' })

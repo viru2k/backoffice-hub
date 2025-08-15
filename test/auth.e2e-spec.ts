@@ -2,10 +2,23 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication } from '@nestjs/common';
 import * as request from 'supertest';
 import { AppModule } from './../src/app.module';
-import { getConnection } from 'typeorm';
+import { DataSource, Repository } from 'typeorm';
+import { Permission } from './../src/permissions/entities/permission.entity';
+import { Role } from './../src/roles/entities/role.entity';
+import { SubscriptionPlan } from './../src/subscription-plan/entities/subscription-plan.entity';
+import { Subscription } from './../src/subscription/entities/subscription.entity';
+import { User } from './../src/user/entities/user.entity';
+import * as bcrypt from 'bcryptjs';
+import { VALID_SERVICES } from './../src/common/constants/services';
 
 describe('Auth Controller (e2e)', () => {
   let app: INestApplication;
+  let dataSource: DataSource;
+  let permissionRepo: Repository<Permission>;
+  let roleRepo: Repository<Role>;
+  let planRepo: Repository<SubscriptionPlan>;
+  let userRepo: Repository<User>;
+  let subscriptionRepo: Repository<Subscription>;
 
   beforeEach(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
@@ -15,9 +28,35 @@ describe('Auth Controller (e2e)', () => {
     app = moduleFixture.createNestApplication();
     await app.init();
 
-    // Clear the database before each test
-    const connection = getConnection();
-    await connection.synchronize(true); // This will drop and recreate the schema
+    dataSource = app.get(DataSource);
+    permissionRepo = dataSource.getRepository(Permission);
+    roleRepo = dataSource.getRepository(Role);
+    planRepo = dataSource.getRepository(SubscriptionPlan);
+    userRepo = dataSource.getRepository(User);
+    subscriptionRepo = dataSource.getRepository(Subscription);
+
+    await dataSource.synchronize(true);
+
+    // Seed necessary data for tests
+    const permissionsData = [
+      { name: 'agenda:read:own', description: 'Ver la agenda propia' },
+      { name: 'agenda:read:group', description: 'Ver la agenda de todos en el grupo' },
+      { name: 'agenda:write:own', description: 'Crear/editar en la agenda propia' },
+      { name: 'agenda:write:group', description: 'Crear/editar en la agenda de todos en el grupo' },
+      { name: 'client:manage:group', description: 'Crear/editar/eliminar clientes del grupo' },
+      { name: 'product:manage:group', description: 'Crear/editar/eliminar productos del grupo' },
+      { name: 'user:manage:group', description: 'Crear/editar/eliminar sub-usuarios del grupo' },
+      { name: 'role:manage', description: 'Gestionar roles y sus permisos' },
+    ];
+    await permissionRepo.save(permissionsData);
+    const allPermissions = await permissionRepo.find();
+
+    const getPerms = (...names: string[]) => allPermissions.filter(p => names.includes(p.name));
+    await roleRepo.save({ name: 'Admin de Cuenta', description: 'Acceso total a la cuenta.', permissions: allPermissions });
+    await roleRepo.save({ name: 'Profesional', description: 'Gestiona su agenda y clientes.', permissions: getPerms('agenda:read:own', 'agenda:write:own', 'client:manage:group', 'product:manage:group') });
+    await roleRepo.save({ name: 'Secretaria', description: 'Gestiona agendas y clientes del grupo.', permissions: getPerms('agenda:read:group', 'agenda:write:group', 'client:manage:group') });
+
+    await planRepo.save({ name: 'Starter', priceMonthly: 10, priceSemiannual: 55, priceAnnual: 100, maxUsers: 3, description: 'Plan para empezar' });
   });
 
   afterAll(async () => {
@@ -30,11 +69,8 @@ describe('Auth Controller (e2e)', () => {
         fullName: 'Test User',
         email: 'test@example.com',
         password: 'password123',
-        phone: '123456789',
-        address: '123 Test St',
-        city: 'Test City',
-        country: 'Test Country',
-        zipCode: '12345',
+        subscriptionType: 'monthly',
+        services: [VALID_SERVICES[0], VALID_SERVICES[1]], // Using 'agenda' and 'inventory'
       };
 
       const response = await request(app.getHttpServer())
@@ -54,11 +90,8 @@ describe('Auth Controller (e2e)', () => {
         fullName: 'Login Test User',
         email: 'login@example.com',
         password: 'loginpassword',
-        phone: '987654321',
-        address: '456 Login Ave',
-        city: 'Login City',
-        country: 'Login Country',
-        zipCode: '54321',
+        subscriptionType: 'monthly',
+        services: [VALID_SERVICES[0], VALID_SERVICES[1]],
       };
       await request(app.getHttpServer())
         .post('/auth/register')
@@ -119,11 +152,8 @@ describe('Auth Controller (e2e)', () => {
         fullName: 'Profile Test User',
         email: 'profile@example.com',
         password: 'profilepassword',
-        phone: '111222333',
-        address: '789 Profile St',
-        city: 'Profile City',
-        country: 'Profile Country',
-        zipCode: '67890',
+        subscriptionType: 'monthly',
+        services: [VALID_SERVICES[0], VALID_SERVICES[1]],
       };
       await request(app.getHttpServer())
         .post('/auth/register')
@@ -142,7 +172,7 @@ describe('Auth Controller (e2e)', () => {
       authToken = loginResponse.body.token;
     });
 
-    it('should return the authenticated user's profile', async () => {
+    it("should return the authenticated user's profile", async () => {
       const response = await request(app.getHttpServer())
         .get('/auth/profile')
         .set('Authorization', `Bearer ${authToken}`)

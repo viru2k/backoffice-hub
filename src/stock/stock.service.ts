@@ -25,6 +25,8 @@ export class StockService {
       ...dto,
       product,
       user,
+      productNameAtTime: product.name, // Guardar el nombre del producto al momento del movimiento
+      date: new Date(), // Establecer fecha actual si no se proporciona
     });
 
     return this.stockRepo.save(movement);
@@ -48,16 +50,20 @@ export class StockService {
 
     const movements = await this.getByProduct(productId, userId);
     const total = movements.reduce((sum, m) => {
-      if (m.type === 'in') return sum + m.quantity;
-      if (m.type === 'out' || m.type === 'usage') return sum - m.quantity;
-      // 'adjustment' might not change stock if recorded without net effect,
-      // or could be an increase/decrease. Assuming adjustments are net changes.
-      // If an adjustment means "set stock to X", this logic needs to be more complex.
-      // For now, assuming 'adjustment' can be positive (add) or negative (subtract) if needed,
-      // but typically 'in' and 'out' cover those.
-      // If 'adjustment' is just setting a new value, this calculation needs to be rethought.
-      // For simplicity here, it doesn't modify the sum unless specifically handled.
-      return sum;
+      switch (m.type) {
+        case 'in':
+          return sum + m.quantity;
+        case 'out':
+        case 'usage':
+          return sum - m.quantity;
+        case 'adjustment':
+          // Los ajustes pueden ser positivos (agregar) o negativos (quitar)
+          // Si quantity es positiva = ajuste hacia arriba
+          // Si quantity es negativa = ajuste hacia abajo
+          return sum + m.quantity;
+        default:
+          return sum;
+      }
     }, 0);
 
     return {

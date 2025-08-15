@@ -1,12 +1,12 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsEmail, IsNotEmpty, IsString } from 'class-validator';
+import { IsEmail, IsString, IsNotEmpty } from 'class-validator';
 
 export class CreateSubUserDto {
-  @ApiProperty()
+  @ApiProperty({ example: 'sub1@empresa.com' })
   @IsEmail()
   email: string;
 
-  @ApiProperty()
+  @ApiProperty({ example: '123456' })
   @IsString()
   @IsNotEmpty()
   password: string;

@@ -11,7 +11,7 @@ import {
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { UserService } from './user.service';
-import { CreateSubUserDto } from './dto/create-subuser.dto';
+import { CreateSubUserDto } from './dto/create-sub-user.dto';
 
 import { UserResponseDto } from './dto/user-response.dto';
 import {
@@ -19,25 +19,38 @@ import {
   ApiOperation,
   ApiResponse,
   ApiTags,
+  ApiBody,
 } from '@nestjs/swagger';
 import { User } from './entities/user.entity';
 import { AdminUpdateUserDto } from './dto/admin-update-user.dto';
 import { PermissionsGuard } from '../common/guards/permissions.guard';
 import { Permissions } from '../common/decorators/permissions.decorator';
+import { RoleResponseDto } from '../roles/dto/role-response.dto';
+import { PermissionResponseDto } from '../permissions/dto/permission-response.dto';
 
 function mapUserToResponseDto(user: User): UserResponseDto {
   if (!user) return null;
 
-const response: UserResponseDto = {
+  const response: UserResponseDto = {
     id: user.id,
     email: user.email,
-    fullName: user.fullName, 
+    fullName: user.fullName,
     isAdmin: user.isAdmin,
     active: user.isActive,
-    createdAt: user.createdAt.toISOString(), 
-    updatedAt: user.updatedAt.toISOString(), 
+    createdAt: user.createdAt.toISOString(),
+    updatedAt: user.updatedAt.toISOString(),
+    roles: user.roles ? user.roles.map(role => ({
+      id: role.id,
+      name: role.name,
+      description: role.description,
+      permissions: role.permissions ? role.permissions.map(permission => ({
+        id: permission.id,
+        name: permission.name,
+        description: permission.description,
+      })) : [],
+    })) : [],
   };
-  return response;  
+  return response;
 }
 
 @ApiTags('users') // Unificada la etiqueta a 'users'
@@ -68,9 +81,18 @@ export class UserController {
 
   @Get('group')
   @Permissions('user:manage:group') 
-  @ApiOperation({ summary: 'Admin: Listar todos los usuarios del grupo' })
+  @ApiOperation({ summary: 'Admin: Listar todos los usuarios del grupo incluyendo admin' })
   @ApiResponse({ status: 200, description: 'Lista de usuarios.', type: [UserResponseDto] })
   async getGroupUsers(@Request() req): Promise<UserResponseDto[]> {
+    const users = await this.userService.findAllUsersInGroup(req.user.id);
+    return users.map(mapUserToResponseDto);
+  }
+
+  @Get('sub-users')
+  @Permissions('user:manage:group') 
+  @ApiOperation({ summary: 'Admin: Listar solo los sub-usuarios del grupo' })
+  @ApiResponse({ status: 200, description: 'Lista de sub-usuarios.', type: [UserResponseDto] })
+  async getSubUsers(@Request() req): Promise<UserResponseDto[]> {
     const users = await this.userService.findUsersByOwner(req.user.id);
     return users.map(mapUserToResponseDto);
   }
@@ -78,6 +100,24 @@ export class UserController {
   @Patch('sub-user/:id')
   @Permissions('user:manage:group')
   @ApiOperation({ summary: 'Admin: Actualizar un sub-usuario (perfil, permisos, estado)' })
+  @ApiBody({
+    type: AdminUpdateUserDto,
+    examples: {
+      'actualizar_roles_y_estado': {
+        summary: 'Actualizar roles y estado de actividad',
+        value: {
+          isActive: true,
+          roles: [{ id: 1, name: 'Admin de Cuenta' }, { id: 2, name: 'Profesional' }]
+        },
+      },
+      'actualizar_solo_nombre': {
+        summary: 'Actualizar solo el nombre completo',
+        value: {
+          fullName: 'Nuevo Nombre Completo'
+        },
+      },
+    },
+  })
   @ApiResponse({ status: 200, description: 'Sub-usuario actualizado.', type: UserResponseDto })
   async updateSubUser(
     @Request() req,

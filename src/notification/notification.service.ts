@@ -44,6 +44,12 @@ export class NotificationService {
     });
   }
 
+  async getUnreadCount(userId: number): Promise<number> {
+    return this.notificationRepo.count({ 
+      where: { user: { id: userId }, read: false } 
+    });
+  }
+
   async getSummary(userId: number) {
     const [all, unread] = await Promise.all([
       this.notificationRepo.count({ where: { user: { id: userId } } }),

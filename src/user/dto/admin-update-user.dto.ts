@@ -1,5 +1,7 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsString, IsOptional, IsBoolean, IsArray, IsNumber } from 'class-validator';
+import { IsString, IsOptional, IsBoolean, IsArray, ValidateNested } from 'class-validator';
+import { Type } from 'class-transformer';
+import { RoleDto } from '../../roles/dto/role.dto';
 
 export class AdminUpdateUserDto {
   @ApiPropertyOptional({ description: 'Nombre completo del usuario', example: 'Juan Pérez' })
@@ -12,9 +14,10 @@ export class AdminUpdateUserDto {
   @IsBoolean()
   isActive?: boolean;
 
-  @ApiPropertyOptional({ description: 'Array de IDs de roles a asignar al usuario', type: [Number], example: [1, 2] })
+  @ApiPropertyOptional({ description: 'Array de objetos de rol a asignar al usuario', type: () => RoleDto, isArray: true })
   @IsOptional()
   @IsArray()
-  @IsNumber({}, { each: true })
-  roleIds?: number[];
+  @ValidateNested({ each: true })
+  @Type(() => RoleDto)
+  roles?: RoleDto[];
 }

@@ -14,6 +14,8 @@ import { AppointmentProductLog } from '../agenda/entities/appointment-product-lo
 import { Client } from '../client/entities/client.entity';
 import { Holiday } from '../agenda/entities/holiday.entity';
 import { AgendaConfig } from '../agenda/entities/agenda-config.entity';
+import { Service } from '../agenda/entities/service.entity';
+import { Room } from '../agenda/entities/room.entity';
 import { Permission } from '../permissions/entities/permission.entity'; 
 import { Role } from '../roles/entities/role.entity';
 
@@ -32,6 +34,8 @@ import { Role } from '../roles/entities/role.entity';
       Client,
       Holiday,
       AgendaConfig,
+      Service,
+      Room,
       Permission, // <-- AÑADIR Permission
       Role,       // <-- AÑADIR Role
     ]),

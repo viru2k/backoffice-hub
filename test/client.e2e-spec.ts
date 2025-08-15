@@ -4,49 +4,57 @@ import * as request from 'supertest';
 import { AppModule } from './../src/app.module';
 import { AuthGuard } from '@nestjs/passport';
 import { PermissionsGuard } from './../src/common/guards/permissions.guard';
-import { getConnection } from 'typeorm';
+import { TypeOrmModule, getRepositoryToken } from '@nestjs/typeorm';
 import { User } from './../src/user/entities/user.entity';
 import { Role } from './../src/roles/entities/role.entity';
 import { Permission } from './../src/permissions/entities/permission.entity';
+import { Client } from './../src/client/entities/client.entity';
+import * as dotenv from 'dotenv';
+
+dotenv.config();
 
 describe('Client Controller (e2e)', () => {
   let app: INestApplication;
-  let agent: request.SuperTest<request.Test>;
+  let agent: any;
   let adminToken: string;
   let nonAdminToken: string;
   let adminUserId: number;
   let nonAdminUserId: number;
   let manageClientsPermission: Permission;
 
+  const mockAuthGuard = { canActivate: jest.fn() };
+  const mockPermissionsGuard = { canActivate: jest.fn(() => true) };
+
   beforeAll(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
-      imports: [AppModule],
+      imports: [
+        TypeOrmModule.forRoot({
+          type: 'sqlite',
+          database: ':memory:',
+          entities: [User, Role, Permission, Client], // Add all entities used in this test suite
+          synchronize: true,
+          logging: false,
+        }),
+        AppModule,
+      ],
     })
       .overrideGuard(AuthGuard('jwt'))
-      .useValue({ canActivate: (context) => {
-        const req = context.switchToHttp().getRequest();
-        // Default mock user for setup, will be overridden per test
-        req.user = { id: 1, email: 'test@example.com', isAdmin: true, roles: [{ permissions: [{ name: 'client:manage' }, { name: 'user:manage:group' }, { name: 'role:manage' }] }] };
-        return true;
-      }})
+      .useValue(mockAuthGuard)
       .overrideGuard(PermissionsGuard)
-      .useValue({ canActivate: () => true })
+      .useValue(mockPermissionsGuard)
       .compile();
 
     app = moduleFixture.createNestApplication();
     await app.init();
     agent = request(app.getHttpServer());
 
-    const connection = getConnection();
-    await connection.synchronize(true); // Clear and re-sync DB
-
     // Create permissions and roles needed for tests
-    const permissionsRepository = connection.getRepository(Permission);
+    const permissionsRepository = app.get(getRepositoryToken(Permission));
     manageClientsPermission = await permissionsRepository.save({ name: 'client:manage', description: 'Manage clients' });
     const manageUsersPermission = await permissionsRepository.save({ name: 'user:manage:group', description: 'Manage users in group' });
     const manageRolesPermission = await permissionsRepository.save({ name: 'role:manage', description: 'Manage roles' });
 
-    const rolesRepository = connection.getRepository(Role);
+    const rolesRepository = app.get(getRepositoryToken(Role));
     const adminRole = await rolesRepository.save({ name: 'Admin', description: 'Account Administrator', permissions: [manageClientsPermission, manageUsersPermission, manageRolesPermission] });
     const professionalRole = await rolesRepository.save({ name: 'Professional', description: 'Professional User', permissions: [] });
 
@@ -61,11 +69,11 @@ describe('Client Controller (e2e)', () => {
       country: 'Admin Country',
       zipCode: '11111',
     };
-    const adminRegisterResponse = await agent.post('/auth/register').send(adminRegisterDto).expect(201);
-    const adminLoginResponse = await agent.post('/auth/login').send({ email: adminRegisterDto.email, password: adminRegisterDto.password }).expect(201);
+    const adminRegisterResponse = await agent.post('/auth/register').send(adminRegisterDto).expect(HttpStatus.CREATED);
+    const adminLoginResponse = await agent.post('/auth/login').send({ email: adminRegisterDto.email, password: adminRegisterDto.password }).expect(HttpStatus.OK);
     adminToken = adminLoginResponse.body.token;
 
-    const userRepository = connection.getRepository(User);
+    const userRepository = app.get(getRepositoryToken(User));
     const adminUser = await userRepository.findOne({ where: { email: adminRegisterDto.email } });
     adminUserId = adminUser.id;
     // Assign admin role to the registered admin user
@@ -83,8 +91,8 @@ describe('Client Controller (e2e)', () => {
       country: 'Non Admin Country',
       zipCode: '22222',
     };
-    const nonAdminRegisterResponse = await agent.post('/auth/register').send(nonAdminRegisterDto).expect(201);
-    const nonAdminLoginResponse = await agent.post('/auth/login').send({ email: nonAdminRegisterDto.email, password: nonAdminRegisterDto.password }).expect(201);
+    const nonAdminRegisterResponse = await agent.post('/auth/register').send(nonAdminRegisterDto).expect(HttpStatus.CREATED);
+    const nonAdminLoginResponse = await agent.post('/auth/login').send({ email: nonAdminRegisterDto.email, password: nonAdminRegisterDto.password }).expect(HttpStatus.OK);
     nonAdminToken = nonAdminLoginResponse.body.token;
 
     const nonAdminUser = await userRepository.findOne({ where: { email: nonAdminRegisterDto.email } });
@@ -236,12 +244,11 @@ describe('Client Controller (e2e)', () => {
       const anotherAdminLoginResponse = await agent.post('/auth/login').send({ email: anotherAdminRegisterDto.email, password: anotherAdminRegisterDto.password }).expect(201);
       anotherAdminToken = anotherAdminLoginResponse.body.token;
 
-      const connection = getConnection();
-      const anotherAdminUser = await connection.getRepository(User).findOne({ where: { email: anotherAdminRegisterDto.email } });
+      const anotherAdminUser = await app.get(getRepositoryToken(User)).findOne({ where: { email: anotherAdminRegisterDto.email } });
       anotherAdminUserId = anotherAdminUser.id;
-      const adminRole = await connection.getRepository(Role).findOne({ where: { name: 'Admin' } });
+      const adminRole = await app.get(getRepositoryToken(Role)).findOne({ where: { name: 'Admin' } });
       anotherAdminUser.roles = [adminRole];
-      await connection.getRepository(User).save(anotherAdminUser);
+      await app.get(getRepositoryToken(User)).save(anotherAdminUser);
     });
 
     it('should allow an admin to get a client from their group', async () => {
@@ -310,12 +317,11 @@ describe('Client Controller (e2e)', () => {
       const anotherAdminLoginResponse = await agent.post('/auth/login').send({ email: anotherAdminRegisterDto.email, password: anotherAdminRegisterDto.password }).expect(201);
       anotherAdminToken = anotherAdminLoginResponse.body.token;
 
-      const connection = getConnection();
-      const anotherAdminUser = await connection.getRepository(User).findOne({ where: { email: anotherAdminRegisterDto.email } });
+      const anotherAdminUser = await app.get(getRepositoryToken(User)).findOne({ where: { email: anotherAdminRegisterDto.email } });
       anotherAdminUserId = anotherAdminUser.id;
-      const adminRole = await connection.getRepository(Role).findOne({ where: { name: 'Admin' } });
+      const adminRole = await app.get(getRepositoryToken(Role)).findOne({ where: { name: 'Admin' } });
       anotherAdminUser.roles = [adminRole];
-      await connection.getRepository(User).save(anotherAdminUser);
+      await app.get(getRepositoryToken(User)).save(anotherAdminUser);
     });
 
     it('should allow an admin to update a client from their group', async () => {
@@ -400,12 +406,11 @@ describe('Client Controller (e2e)', () => {
       const anotherAdminLoginResponse = await agent.post('/auth/login').send({ email: anotherAdminRegisterDto.email, password: anotherAdminRegisterDto.password }).expect(201);
       anotherAdminToken = anotherAdminLoginResponse.body.token;
 
-      const connection = getConnection();
-      const anotherAdminUser = await connection.getRepository(User).findOne({ where: { email: anotherAdminRegisterDto.email } });
+      const anotherAdminUser = await app.get(getRepositoryToken(User)).findOne({ where: { email: anotherAdminRegisterDto.email } });
       anotherAdminUserId = anotherAdminUser.id;
-      const adminRole = await connection.getRepository(Role).findOne({ where: { name: 'Admin' } });
+      const adminRole = await app.get(getRepositoryToken(Role)).findOne({ where: { name: 'Admin' } });
       anotherAdminUser.roles = [adminRole];
-      await connection.getRepository(User).save(anotherAdminUser);
+      await app.get(getRepositoryToken(User)).save(anotherAdminUser);
     });
 
     it('should allow an admin to delete a client from their group', async () => {

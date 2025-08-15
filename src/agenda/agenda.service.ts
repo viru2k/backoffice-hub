@@ -5,15 +5,19 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Between, Repository, IsNull, Not, FindOptionsWhere } from 'typeorm'; // Añadir FindOptionsWhere
+import { Between, Repository, IsNull, Not, FindOptionsWhere, In } from 'typeorm'; // Añadir FindOptionsWhere e In
 import { Appointment, AppointmentStatus } from './entities/appointment.entity';
 import { AgendaConfig } from './entities/agenda-config.entity';
 import { Holiday } from './entities/holiday.entity';
+import { DayOverride } from './entities/day-override.entity';
 import { User } from '../user/entities/user.entity';
 import { Client } from '../client/entities/client.entity'; // Asegúrate de importar Client
 import { CreateAppointmentDto } from './dto/create-appointment.dto';
 import { UpdateAgendaConfigDto } from './dto/update-agenda-config.dto';
 import { BookAppointmentDto } from './dto/book-appointment.dto';
+import { BlockDatesDto } from './dto/block-dates.dto';
+import { BulkConfigUpdateDto } from './dto/bulk-config-update.dto';
+import { DayOverrideDto } from './dto/day-override.dto';
 import { addMinutes, format, isBefore, parseISO } from 'date-fns'; // Importar parseISO
 import { RegisterProductsUsedDto } from './dto/register-products-used.dto';
 import { Product } from '../product/entities/product.entity';
@@ -21,6 +25,8 @@ import { AppointmentProductLog } from './entities/appointment-product-log.entity
 import { StockMovement } from '../stock/entities/stock-movement.entity';
 import { UpdateAppointmentDto } from './dto/update-appointment.dto'; // Importar UpdateAppointmentDto
 import { STATUS_COLORS } from './constants/colors';
+import { Service } from './entities/service.entity';
+import { Room } from './entities/room.entity';
 import { DataSource } from 'typeorm';
 
 const STATUS_TRANSITIONS: Record<AppointmentStatus, AppointmentStatus[]> = {
@@ -45,6 +51,8 @@ export class AgendaService {
     private readonly agendaConfigRepo: Repository<AgendaConfig>,
     @InjectRepository(Holiday)
     private readonly holidayRepo: Repository<Holiday>,
+    @InjectRepository(DayOverride)
+    private readonly dayOverrideRepo: Repository<DayOverride>,
     @InjectRepository(User) // Necesario para buscar el profesional
     private readonly userRepo: Repository<User>,
     @InjectRepository(Client) // Necesario para buscar el cliente
@@ -55,11 +63,46 @@ export class AgendaService {
     private readonly productLogRepo: Repository<AppointmentProductLog>,
     @InjectRepository(StockMovement)
     private readonly stockRepo: Repository<StockMovement>,
+    @InjectRepository(Service)
+    private readonly serviceRepo: Repository<Service>,
+    @InjectRepository(Room)
+    private readonly roomRepo: Repository<Room>,
   ) {}
 
   private async getDefaultSlotDuration(userId: number): Promise<number> {
     const config = await this.agendaConfigRepo.findOne({ where: { user: { id: userId } } }); // CORREGIDO
-  return config?.slotDuration || 30; // Default 30 minutos si no hay config
+    return config?.slotDuration || 30; // Default 30 minutos si no hay config
+  }
+
+  private async getDefaultService(ownerId: number): Promise<number | undefined> {
+    // Buscar servicio por defecto con nombre "Consulta General" o similar
+    const defaultService = await this.serviceRepo.findOne({ 
+      where: { 
+        owner: { id: ownerId },
+        name: 'Consulta General'
+      } 
+    });
+    return defaultService?.id;
+  }
+
+  private async getDefaultRoom(ownerId: number): Promise<number | undefined> {
+    // Buscar sala por defecto con nombre que indique "General" o similar
+    const defaultRoom = await this.roomRepo.findOne({ 
+      where: { 
+        owner: { id: ownerId },
+        name: 'Espacio General'
+      } 
+    });
+    if (defaultRoom) return defaultRoom.id;
+
+    // Si no existe "Espacio General", buscar "Consultorio General"
+    const generalRoom = await this.roomRepo.findOne({ 
+      where: { 
+        owner: { id: ownerId },
+        name: 'Consultorio General'
+      } 
+    });
+    return generalRoom?.id;
   }
 
   // Crear cita
@@ -113,8 +156,24 @@ export class AgendaService {
     appointment.allDay = allDay;
     appointment.status = dto.status || AppointmentStatus.PENDING;
     appointment.color = STATUS_COLORS[status] || STATUS_COLORS.pending; // Color por defecto
-    appointment.serviceId = serviceId;
-    appointment.roomId = roomId;
+    
+    // Asignar servicio (usar por defecto si no se especifica)
+    if (serviceId) {
+      appointment.serviceId = serviceId;
+    } else {
+      // Obtener el owner para buscar servicio por defecto
+      const ownerId = currentUser.owner?.id || currentUser.id;
+      appointment.serviceId = await this.getDefaultService(ownerId);
+    }
+    
+    // Asignar sala (usar por defecto si no se especifica)
+    if (roomId) {
+      appointment.roomId = roomId;
+    } else {
+      // Obtener el owner para buscar sala por defecto
+      const ownerId = currentUser.owner?.id || currentUser.id;
+      appointment.roomId = await this.getDefaultRoom(ownerId);
+    }
 
     // Asignar cliente
     if (clientId) {
@@ -325,17 +384,26 @@ async getAvailableSlots(date: string, professionalUserId: number) {
 
   // Obtener citas (adaptar)
   async getAppointments(
-    filter: { date?: string; from?: string; to?: string; status?: AppointmentStatus, professionalId?: number },
+    filter: { date?: string; from?: string; to?: string; status?: AppointmentStatus | AppointmentStatus[], professionalId?: number, professionalIds?: number[] },
     requestingUserId: number // El ID del usuario que realiza la petición
   ): Promise<Appointment[]> {
     const queryOptions: FindOptionsWhere<Appointment> = {};
 
-    // Por defecto, si no se especifica professionalId en el filtro,
-    // se muestran los turnos del profesional que hace la solicitud.
-    // O podrías requerir siempre un professionalId si es para un admin viendo agendas de otros.
-    const targetProfessionalId = filter.professionalId || requestingUserId;
-    queryOptions.professional = { id: targetProfessionalId };
-
+    // Manejar professionalIds (array) o professionalId (single) 
+    if (filter.professionalIds && filter.professionalIds.length > 0) {
+      // Usar array de IDs
+      if (filter.professionalIds.length === 1) {
+        queryOptions.professional = { id: filter.professionalIds[0] };
+      } else {
+        queryOptions.professional = { id: In(filter.professionalIds) };
+      }
+    } else if (filter.professionalId) {
+      // Compatibilidad hacia atrás con professionalId único
+      queryOptions.professional = { id: filter.professionalId };
+    } else {
+      // Por defecto, mostrar los turnos del usuario que hace la petición
+      queryOptions.professional = { id: requestingUserId };
+    }
 
     if (filter.date) {
       const dayStart = parseISO(`${filter.date}T00:00:00.000Z`);
@@ -345,8 +413,17 @@ async getAvailableSlots(date: string, professionalUserId: number) {
       queryOptions.startDateTime = Between(parseISO(filter.from), parseISO(filter.to));
     }
 
+    // Manejar status como array o valor único
     if (filter.status) {
-      queryOptions.status = filter.status;
+      if (Array.isArray(filter.status)) {
+        if (filter.status.length === 1) {
+          queryOptions.status = filter.status[0];
+        } else if (filter.status.length > 1) {
+          queryOptions.status = In(filter.status);
+        }
+      } else {
+        queryOptions.status = filter.status;
+      }
     }
 
     return this.appointmentRepo.find({ 
@@ -386,14 +463,18 @@ async addHoliday(dto: CreateHolidayDto, professionalUserId: number): Promise<Hol
 }
 
   async getHolidays(professionalUserId: number): Promise<Holiday[]> { // Ahora usa professionalUserId
-    return this.holidayRepo.find({ where: { user: { id: professionalUserId } }, order: { date: 'ASC' } });
+    return this.holidayRepo.find({ 
+      where: { user: { id: professionalUserId } }, 
+      relations: ['user'],
+      order: { date: 'ASC' } 
+    });
   }
 
   // Resumen de citas (adaptar)
-  async getSummary(professionalUserId: number, from: string, to: string) { // Ahora usa professionalUserId
+  async getSummary(professionalUserIds: number[], from: string, to: string) {
     const appointments = await this.appointmentRepo.find({
       where: {
-        professional: { id: professionalUserId },
+        professional: { id: In(professionalUserIds) },
         startDateTime: Between(parseISO(from), parseISO(to)),
       },
     });
@@ -475,5 +556,191 @@ async addHoliday(dto: CreateHolidayDto, professionalUserId: number): Promise<Hol
       relations: ['product'],
       order: { usedAt: 'DESC' },
     });
+  }
+
+  // Métodos para gestión avanzada de agenda
+
+  async blockMultipleDates(dto: BlockDatesDto, userId: number): Promise<number> {
+    const user = await this.userRepo.findOneBy({ id: userId });
+    if (!user) throw new NotFoundException('Usuario no encontrado');
+
+    let blockedCount = 0;
+    for (const date of dto.dates) {
+      // Verificar si ya existe un holiday para esa fecha
+      const existingHoliday = await this.holidayRepo.findOne({
+        where: { date, user: { id: userId } }
+      });
+
+      if (!existingHoliday) {
+        await this.holidayRepo.save({
+          date,
+          reason: dto.reason || 'Día bloqueado',
+          user
+        });
+        blockedCount++;
+      }
+    }
+
+    return blockedCount;
+  }
+
+  async unblockDates(dates: string[], userId: number): Promise<number> {
+    if (dates.length === 0) return 0;
+
+    const result = await this.holidayRepo.delete({
+      date: In(dates),
+      user: { id: userId }
+    });
+
+    return result.affected || 0;
+  }
+
+  async createDayOverride(dto: DayOverrideDto, userId: number): Promise<DayOverride> {
+    const user = await this.userRepo.findOneBy({ id: userId });
+    if (!user) throw new NotFoundException('Usuario no encontrado');
+
+    // Verificar si ya existe un override para esa fecha
+    const existing = await this.dayOverrideRepo.findOne({
+      where: { date: dto.date, user: { id: userId } }
+    });
+
+    if (existing) {
+      // Actualizar el existente
+      Object.assign(existing, dto);
+      return this.dayOverrideRepo.save(existing);
+    }
+
+    // Crear nuevo override
+    const override = this.dayOverrideRepo.create({
+      ...dto,
+      user
+    });
+
+    return this.dayOverrideRepo.save(override);
+  }
+
+  async getDayOverrides(userId: number, from?: string, to?: string): Promise<DayOverride[]> {
+    const where: any = { user: { id: userId } };
+
+    if (from && to) {
+      where.date = Between(from, to);
+    } else if (from) {
+      // Solo fecha desde
+      where.date = from;
+    }
+
+    return this.dayOverrideRepo.find({
+      where,
+      order: { date: 'ASC' }
+    });
+  }
+
+  async bulkConfigUpdate(dto: BulkConfigUpdateDto, userId: number): Promise<number> {
+    const [fromDate, toDate] = dto.dateRange;
+    if (!fromDate || !toDate) {
+      throw new BadRequestException('dateRange debe contener exactamente 2 fechas [from, to]');
+    }
+
+    const user = await this.userRepo.findOneBy({ id: userId });
+    if (!user) throw new NotFoundException('Usuario no encontrado');
+
+    // Para simplificar, creamos overrides para cada día en el rango
+    // En una implementación más compleja, podríamos tener una tabla separada para configuraciones por rango
+    const start = new Date(fromDate);
+    const end = new Date(toDate);
+    let affectedDays = 0;
+
+    for (let date = new Date(start); date <= end; date.setDate(date.getDate() + 1)) {
+      const dateStr = format(date, 'yyyy-MM-dd');
+      
+      // Verificar si es un día laboral según workingDays
+      if (dto.workingDays) {
+        const dayOfWeek = date.toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase();
+        if (!dto.workingDays.includes(dayOfWeek)) {
+          continue; // Saltar días no laborables
+        }
+      }
+
+      await this.dayOverrideRepo.upsert({
+        date: dateStr,
+        user,
+        startTime: dto.startTime,
+        endTime: dto.endTime,
+        slotDuration: dto.slotDuration,
+        blocked: false,
+        note: 'Configuración masiva aplicada'
+      }, ['date', 'user']);
+
+      affectedDays++;
+    }
+
+    return affectedDays;
+  }
+
+  async getAvailabilityRange(userId: number, from: string, to: string): Promise<any> {
+    const config = await this.agendaConfigRepo.findOne({ where: { user: { id: userId } } });
+    if (!config) {
+      throw new NotFoundException('No hay configuración de agenda para este usuario');
+    }
+
+    const start = new Date(from);
+    const end = new Date(to);
+    const availability: any[] = [];
+
+    for (let date = new Date(start); date <= end; date.setDate(date.getDate() + 1)) {
+      const dateStr = format(date, 'yyyy-MM-dd');
+      
+      // Verificar si es día laborable
+      const dayOfWeek = date.toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase();
+      const isWorkingDay = config.workingDays.map(d => d.toLowerCase()).includes(dayOfWeek);
+
+      // Verificar holidays
+      const holiday = await this.holidayRepo.findOne({
+        where: { date: dateStr, user: { id: userId } }
+      });
+
+      // Verificar overrides
+      const override = await this.dayOverrideRepo.findOne({
+        where: { date: dateStr, user: { id: userId } }
+      });
+
+      // Obtener slots disponibles para este día
+      let dayAvailability: any = {
+        date: dateStr,
+        isWorkingDay,
+        isHoliday: !!holiday,
+        isBlocked: override?.blocked || false,
+        holidayReason: holiday?.reason,
+        override: override ? {
+          startTime: override.startTime,
+          endTime: override.endTime,
+          slotDuration: override.slotDuration,
+          note: override.note
+        } : null
+      };
+
+      if (isWorkingDay && !holiday && !override?.blocked) {
+        // Calcular slots disponibles
+        const slots = await this.getAvailableSlots(dateStr, userId);
+        dayAvailability.slots = slots.slots;
+        dayAvailability.availableSlots = slots.slots?.filter(slot => slot.available).length || 0;
+        dayAvailability.totalSlots = slots.slots?.length || 0;
+      } else {
+        dayAvailability.slots = [];
+        dayAvailability.availableSlots = 0;
+        dayAvailability.totalSlots = 0;
+      }
+
+      availability.push(dayAvailability);
+    }
+
+    return {
+      from,
+      to,
+      totalDays: availability.length,
+      workingDays: availability.filter(d => d.isWorkingDay && !d.isHoliday && !d.isBlocked).length,
+      blockedDays: availability.filter(d => d.isHoliday || d.isBlocked).length,
+      days: availability
+    };
   }
 }

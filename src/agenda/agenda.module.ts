@@ -5,6 +5,9 @@ import { AgendaController } from './agenda.controller';
 import { AgendaService } from './agenda.service';
 import { AgendaConfig } from './entities/agenda-config.entity';
 import { Holiday } from './entities/holiday.entity';
+import { DayOverride } from './entities/day-override.entity';
+import { Service } from './entities/service.entity';
+import { Room } from './entities/room.entity';
 import { ReminderService } from '../service/reminder.service'; // Asumiendo que ReminderService está aquí
 import { NotificationModule } from '../notification/notification.module';
 import { Product } from '../product/entities/product.entity';
@@ -22,6 +25,9 @@ import { UserModule } from '../user/user.module';
       Appointment,
       AgendaConfig,
       Holiday,
+      DayOverride,
+      Service,
+      Room,
       Product,
       AppointmentProductLog,
       StockMovement,

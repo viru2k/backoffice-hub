@@ -28,7 +28,7 @@ export class AuthService {
   async register(registerUserDto: RegisterUserDto) {
     // --- CORRECCIÓN DEL DTO ---
 
-    const { email, password, fullName, subscriptionType } = registerUserDto;
+    const { email, password, name, subscriptionType } = registerUserDto;
     
     const existingUser = await this.userService.findByEmail(email);
     if (existingUser) {
@@ -52,7 +52,7 @@ export class AuthService {
     const newUser = await this.userService.createUser({
       email,
       password: hashedPassword,
-      fullName: fullName, 
+      name: name, 
       lastName: '', // El DTO no provee lastName, lo dejamos vacío o lo ajustamos
       isAdmin: true, // El primer usuario registrado es siempre admin de su cuenta
     });

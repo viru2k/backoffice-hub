@@ -2,6 +2,10 @@ import { ApiProperty } from '@nestjs/swagger';
 import { IsEmail, IsString, IsNotEmpty, IsArray, ArrayNotEmpty, ArrayUnique, IsIn } from 'class-validator';
 import { VALID_SERVICES } from './../../common/constants/services';
 export class RegisterUserDto {
+  @ApiProperty()
+  @IsNotEmpty()
+  @IsString()
+  name: string;
   @ApiProperty({ example: 'admin@empresa.com' })
   @IsEmail()
   email: string;

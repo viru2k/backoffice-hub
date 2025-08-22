@@ -21,7 +21,12 @@ import { ConsultationService } from './consultation.service';
 import { CreateConsultationDto } from './dto/create-consultation.dto';
 import { UpdateConsultationDto } from './dto/update-consultation.dto';
 import { ConsultationResponseDto } from './dto/consultation-response.dto';
+import { ConsultationFiltersDto } from './dto/consultation-filters.dto';
 import { UploadService } from '../upload/upload.service';
+import { FileType, EntityType } from '../upload/entities/file-upload.entity';
+import { ConsultationTokenService } from './consultation-token.service';
+import { CreateConsultationTokenDto, ConsultationTokenResponseDto } from './dto/consultation-token.dto';
+import { plainToInstance } from 'class-transformer';
 
 @ApiTags('consultations')
 @ApiBearerAuth()
@@ -31,6 +36,7 @@ export class ConsultationController {
   constructor(
     private readonly consultationService: ConsultationService,
     private readonly uploadService: UploadService,
+    private readonly consultationTokenService: ConsultationTokenService,
   ) {}
 
   @Post()
@@ -41,26 +47,20 @@ export class ConsultationController {
   }
 
   @Get()
-  @ApiOperation({ summary: 'Listar consultas del usuario' })
+  @ApiOperation({ summary: 'Listar consultas del usuario con filtros avanzados' })
   @ApiQuery({ name: 'page', required: false, description: 'Número de página' })
   @ApiQuery({ name: 'limit', required: false, description: 'Elementos por página' })
   @ApiQuery({ name: 'status', required: false, description: 'Filtrar por estado' })
   @ApiQuery({ name: 'clientId', required: false, description: 'Filtrar por cliente' })
+  @ApiQuery({ name: 'date', required: false, description: 'Filtrar por fecha específica (YYYY-MM-DD)' })
+  @ApiQuery({ name: 'today', required: false, description: 'Solo consultas de hoy' })
+  @ApiQuery({ name: 'fromDate', required: false, description: 'Desde fecha (YYYY-MM-DD)' })
+  @ApiQuery({ name: 'toDate', required: false, description: 'Hasta fecha (YYYY-MM-DD)' })
+  @ApiQuery({ name: 'consultationTypeId', required: false, description: 'Filtrar por tipo de consulta' })
+  @ApiQuery({ name: 'clientName', required: false, description: 'Buscar por nombre del cliente' })
   @ApiResponse({ status: 200, type: [ConsultationResponseDto] })
-  findAll(
-    @Request() req,
-    @Query('page') page: string = '1',
-    @Query('limit') limit: string = '10',
-    @Query('status') status?: string,
-    @Query('clientId') clientId?: string,
-  ) {
-    return this.consultationService.findAll(
-      req.user.id,
-      parseInt(page),
-      parseInt(limit),
-      status,
-      clientId ? parseInt(clientId) : undefined,
-    );
+  findAll(@Request() req, @Query() filters: ConsultationFiltersDto) {
+    return this.consultationService.findAll(req.user.id, filters);
   }
 
   @Get('stats')
@@ -135,8 +135,8 @@ export class ConsultationController {
     const uploadResult = await this.uploadService.uploadFile(
       file,
       {
-        fileType: file.mimetype.startsWith('image/') ? 'image' : 'document',
-        entityType: 'consultation',
+        fileType: file.mimetype.startsWith('image/') ? FileType.IMAGE : FileType.DOCUMENT,
+        entityType: EntityType.CONSULTATION,
         entityId: consultationId,
         description: body.description,
       },
@@ -154,5 +154,64 @@ export class ConsultationController {
   @ApiResponse({ status: 204 })
   remove(@Param('id', ParseIntPipe) id: number, @Request() req) {
     return this.consultationService.delete(id, req.user.id);
+  }
+
+  // Consultation Token Endpoints
+  @Post(':id/tokens')
+  @ApiOperation({ summary: 'Crear token manual para consulta' })
+  @ApiResponse({ status: 201, type: ConsultationTokenResponseDto })
+  async createToken(
+    @Param('id', ParseIntPipe) consultationId: number,
+    @Body() createTokenDto: CreateConsultationTokenDto,
+    @Request() req,
+  ) {
+    const token = await this.consultationTokenService.createTokenForConsultation(consultationId, createTokenDto);
+    return plainToInstance(ConsultationTokenResponseDto, token, { excludeExtraneousValues: true });
+  }
+
+  @Post(':id/tokens/auto')
+  @ApiOperation({ summary: 'Crear tokens automáticos para consulta' })
+  @ApiResponse({ status: 201, type: [ConsultationTokenResponseDto] })
+  async createAutoTokens(
+    @Param('id', ParseIntPipe) consultationId: number,
+    @Request() req,
+  ) {
+    const tokens = await this.consultationTokenService.createAutoTokensForConsultation(consultationId);
+    return tokens.map(token => plainToInstance(ConsultationTokenResponseDto, token, { excludeExtraneousValues: true }));
+  }
+
+  @Post(':id/tokens/scenario/:scenario')
+  @ApiOperation({ summary: 'Crear token por escenario específico' })
+  @ApiResponse({ status: 201, type: ConsultationTokenResponseDto })
+  async createTokenByScenario(
+    @Param('id', ParseIntPipe) consultationId: number,
+    @Param('scenario') scenario: 'post-consultation' | 'follow-up' | 'pre-appointment' | 'custom',
+    @Body() customData: Partial<CreateConsultationTokenDto> = {},
+    @Request() req,
+  ) {
+    const token = await this.consultationTokenService.createTokenByScenario(consultationId, scenario, customData);
+    return plainToInstance(ConsultationTokenResponseDto, token, { excludeExtraneousValues: true });
+  }
+
+  @Get(':id/tokens')
+  @ApiOperation({ summary: 'Obtener todos los tokens de una consulta' })
+  @ApiResponse({ status: 200, type: [ConsultationTokenResponseDto] })
+  async getTokensForConsultation(
+    @Param('id', ParseIntPipe) consultationId: number,
+    @Request() req,
+  ) {
+    const tokens = await this.consultationTokenService.getTokensForConsultation(consultationId);
+    return tokens.map(token => plainToInstance(ConsultationTokenResponseDto, token, { excludeExtraneousValues: true }));
+  }
+
+  @Delete('tokens/:tokenId')
+  @ApiOperation({ summary: 'Revocar token específico' })
+  @ApiResponse({ status: 204 })
+  async revokeToken(
+    @Param('tokenId', ParseIntPipe) tokenId: number,
+    @Request() req,
+  ) {
+    await this.consultationTokenService.revokeToken(tokenId);
+    return { message: 'Token revocado exitosamente' };
   }
 }

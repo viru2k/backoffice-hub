@@ -2,6 +2,8 @@ import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { SeedService } from './seed.service';
 import { FullFlowExtendedSeedService } from './full-flow-extended.seed';
+import { BusinessTypeSeedService } from './business-type.seed';
+import { RewardsSeedService } from './rewards.seed';
 import { SubscriptionPlan } from '../subscription-plan/entities/subscription-plan.entity';
 import { SubscriptionPlanFeature } from '../subscription-plan/entities/subscription-plan-feature.entity';
 import { User } from '../user/entities/user.entity';
@@ -18,6 +20,13 @@ import { Service } from '../agenda/entities/service.entity';
 import { Room } from '../agenda/entities/room.entity';
 import { Permission } from '../permissions/entities/permission.entity'; 
 import { Role } from '../roles/entities/role.entity';
+import { Consultation } from '../consultation/entities/consultation.entity';
+import { Invoice } from '../invoice/entities/invoice.entity';
+import { InvoiceItem } from '../invoice/entities/invoice-item.entity';
+import { BusinessType } from '../business-type/entities/business-type.entity';
+import { ConsultationType } from '../business-type/entities/consultation-type.entity';
+import { RewardProgram } from '../rewards/entities/reward-program.entity';
+import { CustomerReward } from '../rewards/entities/customer-reward.entity';
 
 @Module({
  imports: [
@@ -38,9 +47,16 @@ import { Role } from '../roles/entities/role.entity';
       Room,
       Permission, // <-- AÑADIR Permission
       Role,       // <-- AÑADIR Role
+      Consultation,
+      Invoice,
+      InvoiceItem,
+      BusinessType,
+      ConsultationType,
+      RewardProgram,
+      CustomerReward,
     ]),
   ],
-  providers: [SeedService, FullFlowExtendedSeedService],
-  exports: [SeedService,TypeOrmModule], 
+  providers: [SeedService, FullFlowExtendedSeedService, BusinessTypeSeedService, RewardsSeedService],
+  exports: [SeedService, FullFlowExtendedSeedService, BusinessTypeSeedService, RewardsSeedService, TypeOrmModule], 
 })
 export class SeedModule {}

@@ -18,6 +18,7 @@ import { StockMovement } from '../stock/entities/stock-movement.entity';
 import { User } from '../user/entities/user.entity';
 import { Client } from '../client/entities/client.entity';
 import { UserModule } from '../user/user.module';
+import { RewardsModule } from '../rewards/rewards.module';
 
 @Module({
   imports: [
@@ -36,6 +37,7 @@ import { UserModule } from '../user/user.module';
     ]),
     NotificationModule, 
      UserModule,
+     RewardsModule,
   ],
   providers: [AgendaService, ReminderService],
   controllers: [AgendaController],

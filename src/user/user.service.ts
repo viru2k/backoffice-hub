@@ -46,13 +46,26 @@ async createSubUser(dto: CreateSubUserDto, owner: User): Promise<User> {
     }
 
     const hashedPassword = await bcrypt.hash(dto.password, 10);
+    
+    // Handle roles if provided
+    let roles = [];
+    if (dto.roles && dto.roles.length > 0) {
+      const roleIds = dto.roles.map(role => role.id);
+      roles = await this.roleRepository.findByIds(roleIds);
+      if (roles.length !== roleIds.length) {
+        throw new BadRequestException('Uno o más roles son inválidos.');
+      }
+    }
+    
     const newUser = this.userRepository.create({
-      ...dto, // fullName, email, etc.
+      email: dto.email,
       password: hashedPassword,
-      owner: owner, // Asignar el admin como dueño
-      isAdmin: false, // Los sub-usuarios no son admins
-      isActive: true,
-      roles: [], // Initialize roles for new sub-user
+      name: dto.fullName ? dto.fullName.split(' ')[0] : '',
+      lastName: dto.fullName ? dto.fullName.split(' ').slice(1).join(' ') : '',
+      owner: owner,
+      isAdmin: dto.isAdmin ?? false,
+      isActive: dto.isActive ?? true,
+      roles: roles,
     });
 
     return this.userRepository.save(newUser);
@@ -92,17 +105,29 @@ async createSubUser(dto: CreateSubUserDto, owner: User): Promise<User> {
   async updateByAdmin(userIdToUpdate: number, adminId: number, dto: AdminUpdateUserDto): Promise<User> {
     const userToUpdate = await this.userRepository.findOne({
         where: { id: userIdToUpdate, owner: { id: adminId } },
-        relations: ['owner', 'roles'] // Load roles for update
+        relations: ['owner', 'roles']
     });
 
     if (!userToUpdate) {
         throw new NotFoundException('Usuario no encontrado o no pertenece a su grupo.');
     }
 
+    // Check if email is being updated and if it's unique
+    if (dto.email !== undefined && dto.email !== userToUpdate.email) {
+      const existingUser = await this.userRepository.findOne({ where: { email: dto.email }});
+      if (existingUser) {
+        throw new BadRequestException('El email ya está en uso.');
+      }
+      userToUpdate.email = dto.email;
+    }
+
     // Update simple fields
-    if (dto.fullName !== undefined) userToUpdate.name = dto.fullName.split(' ')[0]; // Assuming first word is name
-    if (dto.fullName !== undefined) userToUpdate.lastName = dto.fullName.split(' ').slice(1).join(' '); // Rest is lastName
+    if (dto.fullName !== undefined) {
+      userToUpdate.name = dto.fullName.split(' ')[0];
+      userToUpdate.lastName = dto.fullName.split(' ').slice(1).join(' ');
+    }
     if (dto.isActive !== undefined) userToUpdate.isActive = dto.isActive;
+    if (dto.isAdmin !== undefined) userToUpdate.isAdmin = dto.isAdmin;
 
     // Handle role updates
     if (dto.roles !== undefined) {
@@ -110,11 +135,11 @@ async createSubUser(dto: CreateSubUserDto, owner: User): Promise<User> {
         const roleIds = dto.roles.map(role => role.id);
         const roles = await this.roleRepository.findByIds(roleIds);
         if (roles.length !== roleIds.length) {
-          throw new BadRequestException('One or more role IDs are invalid.');
+          throw new BadRequestException('Uno o más roles son inválidos.');
         }
         userToUpdate.roles = roles;
       } else {
-        userToUpdate.roles = []; // Clear roles if an empty array is provided
+        userToUpdate.roles = [];
       }
     }
 

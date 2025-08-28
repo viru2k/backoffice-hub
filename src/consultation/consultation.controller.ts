@@ -26,6 +26,7 @@ import { UploadService } from '../upload/upload.service';
 import { FileType, EntityType } from '../upload/entities/file-upload.entity';
 import { ConsultationTokenService } from './consultation-token.service';
 import { CreateConsultationTokenDto, ConsultationTokenResponseDto } from './dto/consultation-token.dto';
+import { ConsultationOperationResultDto } from './dto/operation-result.dto';
 import { plainToInstance } from 'class-transformer';
 
 @ApiTags('consultations')
@@ -206,12 +207,12 @@ export class ConsultationController {
 
   @Delete('tokens/:tokenId')
   @ApiOperation({ summary: 'Revocar token específico' })
-  @ApiResponse({ status: 204 })
+  @ApiResponse({ type: ConsultationOperationResultDto })
   async revokeToken(
     @Param('tokenId', ParseIntPipe) tokenId: number,
     @Request() req,
-  ) {
+  ): Promise<ConsultationOperationResultDto> {
     await this.consultationTokenService.revokeToken(tokenId);
-    return { message: 'Token revocado exitosamente' };
+    return new ConsultationOperationResultDto('Token revocado exitosamente');
   }
 }

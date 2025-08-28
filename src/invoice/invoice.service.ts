@@ -241,7 +241,7 @@ export class InvoiceService {
               productId: item.itemId,
               type: 'out',
               quantity: item.quantity,
-              notes: `Venta - Factura ${invoice.invoiceNumber}`,
+              reason: `Venta - Factura ${invoice.invoiceNumber}`,
             }, userId);
           }
         }
@@ -357,17 +357,15 @@ export class InvoiceService {
     const tomorrow = new Date(today);
     tomorrow.setDate(tomorrow.getDate() + 1);
 
-    const invoices = await this.invoiceRepo.find({
-      where: {
-        userId,
-        status: 'paid',
-        paymentDate: {
-          $gte: today,
-          $lt: tomorrow,
-        } as any,
-      },
-      relations: ['client', 'items'],
-    });
+    const invoices = await this.invoiceRepo
+      .createQueryBuilder('invoice')
+      .leftJoinAndSelect('invoice.client', 'client')
+      .leftJoinAndSelect('invoice.items', 'items')
+      .where('invoice.userId = :userId', { userId })
+      .andWhere('invoice.status = :status', { status: 'paid' })
+      .andWhere('invoice.paymentDate >= :today', { today })
+      .andWhere('invoice.paymentDate < :tomorrow', { tomorrow })
+      .getMany();
 
     const totalSales = invoices.reduce((sum, invoice) => sum + Number(invoice.total), 0);
 

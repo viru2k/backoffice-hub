@@ -1,31 +1,35 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsBoolean, IsArray, IsIn, IsString, IsInt, Min, Max } from 'class-validator';
+import { IsString, IsNumber, IsBoolean, IsArray, IsIn, Min, Max } from 'class-validator';
+import { Type } from 'class-transformer';
 
 export class UpdateAgendaConfigDto {
-  @ApiProperty({ example: '08:00' })
+  @ApiProperty({ example: '09:00' })
   @IsString()
   startTime: string;
 
-  @ApiProperty({ example: '16:00' })
+  @ApiProperty({ example: '18:00' })
   @IsString()
   endTime: string;
 
-  @ApiProperty({ example: 15 })
-  @IsInt()
+  @ApiProperty({ example: 45 })
+  @Type(() => Number)
+  @IsNumber()
   @Min(5)
-  @Max(60)
+  @Max(120)
   slotDuration: number;
 
-  @ApiProperty({ example: true })
+  @ApiProperty({ example: false })
+  @Type(() => Boolean)
   @IsBoolean()
   overbookingAllowed: boolean;
 
   @ApiProperty({ example: false })
+  @Type(() => Boolean)
   @IsBoolean()
   allowBookingOnBlockedDays: boolean;
 
-  @ApiProperty({ example: ['monday', 'tuesday', 'wednesday'] })
+  @ApiProperty({ example: ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY'] })
   @IsArray()
-  @IsIn(['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'], { each: true })
+  @IsIn(['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'], { each: true })
   workingDays: string[];
 }

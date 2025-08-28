@@ -32,6 +32,7 @@ import {
 } from 'date-fns';
 import { CreateHolidayDto } from './entities/create-holiday.dto'; 
 import { RegisterProductsUsedDto } from './dto/register-products-used.dto';
+import { CalendarAvailabilityDto, CalendarAvailabilityQueryDto } from './dto/calendar-availability.dto';
 
 import { AppointmentResponseDto, AppointmentProfessionalResponseDto, AppointmentClientResponseDto } from './dto/appointment-response.dto';
 import { AvailableSlotResponseDto } from './dto/available-slot-response.dto';
@@ -249,7 +250,23 @@ async getAvailable(
     return config as any; 
   }
 
-  @Patch('config')
+  @Patch('config-test')
+  async updateConfigTest(
+    @Body() dto: any, 
+    @Request() req,
+    @Query('professionalId') professionalIdQuery?: string,
+  ): Promise<any> {
+    console.log('TEST - Raw DTO received:', dto);
+    return { message: 'Test successful', dto, professionalId: professionalIdQuery };
+  }
+
+  @Post('test-simple')
+  async testSimple(): Promise<any> {
+    console.log('ENDPOINT TEST SIMPLE FUNCIONÓ');
+    return { message: 'Test simple exitoso' };
+  }
+
+  @Post('config/update')
   @Permissions('agenda:write:own', 'agenda:write:group')
   @ApiOperation({ summary: 'Actualizar configuración de agenda del profesional actual (o especificado)' })
   @ApiResponse({ status: HttpStatus.OK, type: AgendaConfigResponseDto })
@@ -523,5 +540,52 @@ async getAvailable(
   ): Promise<any> {
     const targetProfessionalId = professionalIdQuery ? parseInt(professionalIdQuery, 10) : req.user.id;
     return this.agendaService.getAvailabilityRange(targetProfessionalId, from, to);
+  }
+
+  @Get('calendar-availability')
+  @Permissions('agenda:read:own', 'agenda:read:group')
+  @ApiOperation({ 
+    summary: 'Obtener disponibilidad del calendario mensual',
+    description: 'Retorna la disponibilidad de cada día del mes con estados: disponible, limitado, lleno, bloqueado, feriado, pasado'
+  })
+  @ApiQuery({ name: 'year', required: true, type: Number, description: 'Año (ej: 2025)' })
+  @ApiQuery({ name: 'month', required: true, type: Number, description: 'Mes (1-12)' })
+  @ApiQuery({ name: 'professionalId', required: false, type: Number, description: 'ID del profesional (admin)' })
+  @ApiResponse({ 
+    status: HttpStatus.OK, 
+    description: 'Disponibilidad del calendario mensual', 
+    type: CalendarAvailabilityDto 
+  })
+  @ApiResponse({ status: HttpStatus.BAD_REQUEST, description: 'Parámetros inválidos.' })
+  @ApiResponse({ status: HttpStatus.FORBIDDEN, description: 'Sin permisos para acceder a la agenda solicitada.' })
+  async getCalendarAvailability(
+    @Request() req,
+    @Query('year', ParseIntPipe) year: number,
+    @Query('month', ParseIntPipe) month: number,
+    @Query('professionalId') professionalIdQuery?: string,
+  ): Promise<CalendarAvailabilityDto> {
+    // Validar parámetros
+    if (year < 2020 || year > 2030) {
+      throw new BadRequestException('El año debe estar entre 2020 y 2030.');
+    }
+    if (month < 1 || month > 12) {
+      throw new BadRequestException('El mes debe estar entre 1 y 12.');
+    }
+
+    const targetProfessionalId = professionalIdQuery ? parseInt(professionalIdQuery, 10) : req.user.id;
+    
+    // Verificar permisos si se solicita otro usuario
+    if (targetProfessionalId !== req.user.id) {
+      if (!req.user.isAdmin) {
+        throw new ForbiddenException('No tienes permisos para ver la agenda de otros usuarios.');
+      }
+      
+      const isMember = await this.userService.isUserInAdminGroup(targetProfessionalId, req.user.id);
+      if (!isMember) {
+        throw new ForbiddenException(`El usuario con ID ${targetProfessionalId} no pertenece a su grupo.`);
+      }
+    }
+
+    return this.agendaService.getCalendarAvailability({ year, month, professionalId: targetProfessionalId });
   }
 }

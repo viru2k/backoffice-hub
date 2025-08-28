@@ -27,6 +27,8 @@ import { BusinessType } from '../business-type/entities/business-type.entity';
 import { ConsultationType } from '../business-type/entities/consultation-type.entity';
 import { RewardProgram } from '../rewards/entities/reward-program.entity';
 import { CustomerReward } from '../rewards/entities/customer-reward.entity';
+import { EmailTemplate } from '../email/entities/email-template.entity';
+import { EmailTemplatesSeedService } from './email-templates.seed';
 
 @Module({
  imports: [
@@ -54,9 +56,10 @@ import { CustomerReward } from '../rewards/entities/customer-reward.entity';
       ConsultationType,
       RewardProgram,
       CustomerReward,
+      EmailTemplate,
     ]),
   ],
-  providers: [SeedService, FullFlowExtendedSeedService, BusinessTypeSeedService, RewardsSeedService],
+  providers: [SeedService, FullFlowExtendedSeedService, BusinessTypeSeedService, RewardsSeedService, EmailTemplatesSeedService],
   exports: [SeedService, FullFlowExtendedSeedService, BusinessTypeSeedService, RewardsSeedService, TypeOrmModule], 
 })
 export class SeedModule {}

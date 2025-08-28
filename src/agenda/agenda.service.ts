@@ -468,11 +468,20 @@ async getAvailableSlots(date: string, professionalUserId: number) {
 
   // Feriados (adaptar 'user' a 'professional')
 async addHoliday(dto: CreateHolidayDto, professionalUserId: number): Promise<Holiday> {
-  const professionalUser = await this.userRepo.findOneBy({id: professionalUserId}); // Buscamos el User
+  const professionalUser = await this.userRepo.findOneBy({id: professionalUserId});
   if(!professionalUser) throw new NotFoundException(`Profesional con ID ${professionalUserId} no encontrado.`);
-  const exists = await this.holidayRepo.findOne({ where: { user: { id: professionalUserId }, date: dto.date } });
-  if (exists) throw new BadRequestException('Ya existe un feriado en esa fecha para este profesional.')
-  const holiday = this.holidayRepo.create({ ...dto, user: professionalUser }); 
+  
+  // Convertir la fecha ISO a formato YYYY-MM-DD
+  const dateOnly = new Date(dto.date).toISOString().split('T')[0];
+  
+  const exists = await this.holidayRepo.findOne({ where: { user: { id: professionalUserId }, date: dateOnly } });
+  if (exists) throw new BadRequestException('Ya existe un feriado en esa fecha para este profesional.');
+  
+  const holiday = this.holidayRepo.create({ 
+    date: dateOnly, 
+    reason: dto.reason, 
+    user: professionalUser 
+  }); 
   return this.holidayRepo.save(holiday);
 }
 

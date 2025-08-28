@@ -10,9 +10,11 @@ import {
 } from 'typeorm';
 import { User } from '../../user/entities/user.entity';
 import { Client } from '../../client/entities/client.entity';
-// import { Agenda } from '../../agenda/entities/agenda.entity'; // TODO: Uncomment when agenda entity exists
+import { Appointment } from '../../agenda/entities/appointment.entity';
 import { FileUpload } from '../../upload/entities/file-upload.entity';
 import { Invoice } from '../../invoice/entities/invoice.entity';
+import { ConsultationType } from '../../business-type/entities/consultation-type.entity';
+import { ConsultationToken } from './consultation-token.entity';
 
 export type ConsultationStatus = 'pending' | 'in_progress' | 'completed' | 'cancelled';
 
@@ -29,6 +31,9 @@ export class Consultation {
 
   @Column({ name: 'user_id' })
   userId: number;
+
+  @Column({ name: 'consultation_type_id', nullable: true })
+  consultationTypeId: number;
 
   @Column({
     type: 'enum',
@@ -94,6 +99,9 @@ export class Consultation {
   @Column({ name: 'follow_up_date', type: 'datetime', nullable: true })
   followUpDate: Date;
 
+  @Column({ type: 'json', nullable: true })
+  customFields: Record<string, any>; // Campos específicos según el tipo de consulta
+
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
 
@@ -109,9 +117,13 @@ export class Consultation {
   @JoinColumn({ name: 'client_id' })
   client: Client;
 
-  // @ManyToOne(() => Agenda, { nullable: true })
-  // @JoinColumn({ name: 'appointment_id' })
-  // appointment: Agenda; // TODO: Uncomment when agenda entity exists
+  @ManyToOne(() => Appointment, { nullable: true, eager: true })
+  @JoinColumn({ name: 'appointment_id' })
+  appointment: Appointment;
+
+  @ManyToOne(() => ConsultationType, (consultationType) => consultationType.consultations, { eager: true })
+  @JoinColumn({ name: 'consultation_type_id' })
+  consultationType: ConsultationType;
 
   @OneToMany(() => FileUpload, (file) => file.entityId, {
     cascade: true,
@@ -120,4 +132,7 @@ export class Consultation {
 
   @OneToMany(() => Invoice, (invoice) => invoice.consultation)
   invoices: Invoice[];
+
+  @OneToMany(() => ConsultationToken, (token) => token.consultation)
+  tokens: ConsultationToken[];
 }

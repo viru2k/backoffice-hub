@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { BullModule } from '@nestjs/bull';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
@@ -28,6 +29,12 @@ import { RewardsModule } from './rewards/rewards.module';
 
 @Module({
   imports: [
+    BullModule.forRoot({
+      redis: {
+        host: process.env.EMAIL_QUEUE_REDIS_HOST || 'localhost',
+        port: parseInt(process.env.EMAIL_QUEUE_REDIS_PORT, 10) || 6379,
+      },
+    }),
     AuthModule,
     UserModule,
     SubscriptionModule,

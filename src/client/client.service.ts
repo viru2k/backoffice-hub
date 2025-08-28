@@ -14,8 +14,12 @@ export class ClientService {
   ) {}
 
 async create(createClientDto: CreateClientDto, user: User): Promise<Client> {
+    // Generate unique membership number if not provided
+    const membershipNumber = createClientDto.membershipNumber || await this.generateUniqueMembershipNumber();
+    
     const newClient = this.clientRepository.create({
       ...createClientDto,
+      membershipNumber,
       status: createClientDto.status || ClientStatus.CREATED, 
       owner: user,
       user: user,
@@ -57,5 +61,36 @@ async update(id: number, updateClientDto: UpdateClientDto, requestingUser: User)
       .leftJoinAndSelect('client.owner', 'owner')
       .where('owner.id = :adminId OR owner.owner_id = :adminId', { adminId })
       .getMany();
+  }
+
+  private async generateUniqueMembershipNumber(): Promise<string> {
+    let membershipNumber: string;
+    let attempts = 0;
+    const maxAttempts = 10;
+
+    do {
+      // Generate a membership number with format: ORB-YYYYMMDD-XXXX
+      const date = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+      const randomPart = Math.floor(1000 + Math.random() * 9000).toString();
+      membershipNumber = `ORB-${date}-${randomPart}`;
+      
+      attempts++;
+      if (attempts >= maxAttempts) {
+        // Fallback to timestamp-based number
+        membershipNumber = `ORB-${Date.now()}`;
+        break;
+      }
+
+      // Check if this membership number already exists
+      const existingClient = await this.clientRepository.findOne({
+        where: { membershipNumber }
+      });
+
+      if (!existingClient) {
+        break;
+      }
+    } while (true);
+
+    return membershipNumber;
   }
 }

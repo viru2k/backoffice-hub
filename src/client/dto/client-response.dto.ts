@@ -22,6 +22,9 @@ export class ClientResponseDto {
   email?: string;
 
   @ApiProperty({ required: false })
+  membershipNumber?: string;
+
+  @ApiProperty({ required: false })
   phone?: string;
 
   @ApiProperty({ enum: ['male', 'female', 'other'], required: false })

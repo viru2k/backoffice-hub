@@ -5,6 +5,8 @@ import { RewardsController } from './rewards.controller';
 import { RewardProgram } from './entities/reward-program.entity';
 import { CustomerReward } from './entities/customer-reward.entity';
 import { Client } from '../client/entities/client.entity';
+import { EmailModule } from '../email/email.module';
+import { NotificationModule } from '../notification/notification.module';
 
 @Module({
   imports: [
@@ -13,6 +15,8 @@ import { Client } from '../client/entities/client.entity';
       CustomerReward,
       Client,
     ]),
+    EmailModule,
+    NotificationModule,
   ],
   controllers: [RewardsController],
   providers: [RewardsService],

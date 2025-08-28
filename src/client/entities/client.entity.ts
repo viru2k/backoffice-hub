@@ -1,5 +1,6 @@
 import { Appointment } from "./../../agenda/entities/appointment.entity";
 import { User } from "./../../user/entities/user.entity";
+import { CustomerReward } from "./../../rewards/entities/customer-reward.entity";
 import { Column, CreateDateColumn, Entity, ManyToOne, OneToMany, PrimaryGeneratedColumn, UpdateDateColumn,  } from "typeorm";
 
 
@@ -34,6 +35,9 @@ export class Client {
   @Column({ nullable: true })
   email?: string;
 
+  @Column({ nullable: true, unique: true })
+  membershipNumber?: string;
+
   @Column({ nullable: true })
   gender?: 'male' | 'female' | 'other';
 
@@ -67,4 +71,7 @@ export class Client {
 
   @OneToMany(() => Appointment, (appointment) => appointment.client)
   appointments: Appointment[];
+
+  @OneToMany(() => CustomerReward, (customerReward) => customerReward.client)
+  rewards: CustomerReward[];
 }

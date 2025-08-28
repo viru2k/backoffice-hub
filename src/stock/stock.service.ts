@@ -76,4 +76,24 @@ export class StockService {
     };
   }
 
+  async createMovement(dto: CreateStockMovementDto, userId: number) {
+    const product = await this.productRepo.findOne({ 
+      where: { id: dto.productId, owner: { id: userId } } 
+    });
+    
+    if (!product) {
+      throw new NotFoundException('Producto no encontrado');
+    }
+
+    const movement = this.stockRepo.create({
+      ...dto,
+      product,
+      user: { id: userId } as User,
+      productNameAtTime: product.name,
+      date: new Date(),
+    });
+
+    return this.stockRepo.save(movement);
+  }
+
 }

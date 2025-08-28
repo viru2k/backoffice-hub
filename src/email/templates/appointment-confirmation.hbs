@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Confirmación de Cita - Orbyt</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 0; padding: 20px; background-color: #f5f5f5; }
+        .container { max-width: 600px; margin: 0 auto; background-color: white; padding: 30px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .header { text-align: center; margin-bottom: 30px; }
+        .logo { color: #007bff; font-size: 24px; font-weight: bold; }
+        .appointment-details { background-color: #f8f9fa; padding: 20px; border-radius: 5px; margin: 20px 0; }
+        .detail-row { margin: 10px 0; }
+        .label { font-weight: bold; color: #333; }
+        .value { color: #666; }
+        .footer { margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee; text-align: center; color: #666; font-size: 14px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="logo">Orbyt</div>
+            <h1 style="color: #333; margin: 20px 0;">Confirmación de Cita</h1>
+        </div>
+        
+        <p>Estimado/a <strong>{{clientName}}</strong>,</p>
+        
+        <p>Su cita ha sido confirmada exitosamente. A continuación los detalles:</p>
+        
+        <div class="appointment-details">
+            <div class="detail-row">
+                <span class="label">Fecha:</span>
+                <span class="value">{{appointmentDate}}</span>
+            </div>
+            <div class="detail-row">
+                <span class="label">Hora:</span>
+                <span class="value">{{appointmentTime}}</span>
+            </div>
+            <div class="detail-row">
+                <span class="label">Servicio:</span>
+                <span class="value">{{serviceName}}</span>
+            </div>
+            <div class="detail-row">
+                <span class="label">Profesional:</span>
+                <span class="value">{{professionalName}}</span>
+            </div>
+            {{#if location}}
+            <div class="detail-row">
+                <span class="label">Ubicación:</span>
+                <span class="value">{{location}}</span>
+            </div>
+            {{/if}}
+        </div>
+        
+        <p><strong>Importante:</strong></p>
+        <ul>
+            <li>Llegue 10 minutos antes de su cita</li>
+            <li>Si necesita reprogramar, contáctenos con al menos 24 horas de anticipación</li>
+            <li>Para cancelaciones el mismo día se puede aplicar una penalización</li>
+        </ul>
+        
+        {{#if notes}}
+        <p><strong>Notas adicionales:</strong> {{notes}}</p>
+        {{/if}}
+        
+        <p>¡Esperamos verle pronto!</p>
+        
+        <div class="footer">
+            <p>Este es un mensaje automático, por favor no responda a este email.</p>
+            <p>Para consultas, contáctenos a: {{supportEmail}}</p>
+        </div>
+    </div>
+</body>
+</html>

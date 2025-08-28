@@ -6,6 +6,8 @@ import { CustomerReward, CustomerRewardStatus } from './entities/customer-reward
 import { Client } from '../client/entities/client.entity';
 import { CreateRewardProgramDto } from './dto/create-reward-program.dto';
 import { UpdateRewardProgramDto } from './dto/update-reward-program.dto';
+import { EmailService } from '../email/email.service';
+import { NotificationService } from '../notification/notification.service';
 
 @Injectable()
 export class RewardsService {
@@ -16,6 +18,8 @@ export class RewardsService {
     private customerRewardRepository: Repository<CustomerReward>,
     @InjectRepository(Client)
     private clientRepository: Repository<Client>,
+    private emailService: EmailService,
+    private notificationService: NotificationService,
   ) {}
 
   // Gestión de Programas de Recompensas
@@ -169,6 +173,9 @@ export class RewardsService {
       if (program.validUntil) {
         customerReward.expiresAt = program.validUntil;
       }
+
+      // Send reward notification email and push notification
+      await this.sendRewardEarnedNotification(client, customerReward, program);
     }
 
     await this.customerRewardRepository.save(customerReward);
@@ -217,6 +224,27 @@ export class RewardsService {
     };
   }
 
+  // Búsqueda de Clientes para Recompensas
+  async searchClientsForRewards(query: string): Promise<Client[]> {
+    if (!query || query.trim().length < 2) {
+      return [];
+    }
+
+    const searchTerm = `%${query.trim()}%`;
+    
+    return await this.clientRepository
+      .createQueryBuilder('client')
+      .where('client.name LIKE :searchTerm', { searchTerm })
+      .orWhere('client.lastName LIKE :searchTerm', { searchTerm })
+      .orWhere('client.phone LIKE :searchTerm', { searchTerm })
+      .orWhere('client.email LIKE :searchTerm', { searchTerm })
+      .orWhere('client.membershipNumber LIKE :searchTerm', { searchTerm })
+      .orWhere('CONCAT(client.name, \' \', client.lastName) LIKE :searchTerm', { searchTerm })
+      .orderBy('client.name', 'ASC')
+      .limit(10)
+      .getMany();
+  }
+
   async cleanupExpiredRewards(): Promise<void> {
     const expiredRewards = await this.customerRewardRepository.find({
       where: { 
@@ -230,6 +258,92 @@ export class RewardsService {
         reward.status = CustomerRewardStatus.EXPIRED;
         await this.customerRewardRepository.save(reward);
       }
+    }
+  }
+
+  // Email and notification methods
+  private async sendRewardEarnedNotification(
+    client: Client, 
+    customerReward: CustomerReward, 
+    program: RewardProgram
+  ): Promise<void> {
+    try {
+      // Get client's other active rewards for progress display
+      const otherRewards = await this.getClientActiveRewards(client.id);
+      const otherRewardsData = otherRewards
+        .filter(r => r.id !== customerReward.id)
+        .map(reward => ({
+          programName: reward.rewardProgram.name,
+          currentProgress: parseFloat(reward.currentProgress.toString()),
+          targetValue: parseFloat(reward.targetValue.toString()),
+          progressPercentage: Math.round((parseFloat(reward.currentProgress.toString()) / parseFloat(reward.targetValue.toString())) * 100),
+          remaining: parseFloat(reward.targetValue.toString()) - parseFloat(reward.currentProgress.toString()),
+          isClose: (parseFloat(reward.targetValue.toString()) - parseFloat(reward.currentProgress.toString())) <= 2,
+        }));
+
+      // Determine reward type display
+      let rewardType = '';
+      let isPercentage = false;
+      let isAmount = false;
+      let isFreeService = false;
+      let isPoints = false;
+      let rewardDescription = '';
+
+      switch (program.rewardType) {
+        case 'DISCOUNT_PERCENTAGE':
+          rewardType = 'Descuento';
+          isPercentage = true;
+          break;
+        case 'DISCOUNT_AMOUNT':
+          rewardType = 'Descuento';
+          isAmount = true;
+          break;
+        case 'FREE_SERVICE':
+          rewardType = 'Servicio Gratuito';
+          isFreeService = true;
+          rewardDescription = program.description || 'Servicio gratuito';
+          break;
+        case 'POINTS':
+          rewardType = 'Puntos';
+          isPoints = true;
+          break;
+      }
+
+      // Send email notification
+      await this.emailService.sendTemplateEmail({
+        to: [client.email],
+        templateId: 'reward-notification', // This would need to be the actual template ID
+        templateVariables: {
+          clientName: `${client.name} ${client.lastName}`,
+          programName: program.name,
+          rewardType,
+          rewardValue: program.rewardValue,
+          isPercentage,
+          isAmount,
+          isFreeService,
+          isPoints,
+          rewardDescription,
+          expirationDate: customerReward.expiresAt ? 
+            customerReward.expiresAt.toLocaleDateString('es-ES', {
+              year: 'numeric',
+              month: 'long',
+              day: 'numeric'
+            }) : null,
+          redeemUrl: `${process.env.FRONTEND_URL}/rewards/redeem/${customerReward.id}`,
+          otherRewards: otherRewardsData,
+        },
+      });
+
+      // Send push notification
+      await this.notificationService.create(
+        '🎉 ¡Recompensa Ganada!',
+        `Has completado el programa "${program.name}" y ganado una nueva recompensa.`,
+        client.id
+      );
+
+    } catch (error) {
+      console.error('Error sending reward notification:', error);
+      // Don't throw error to avoid breaking the main flow
     }
   }
 }

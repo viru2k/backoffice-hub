@@ -43,7 +43,12 @@ export class InvoiceItem {
   @Column({ type: 'decimal', precision: 10, scale: 2, default: 0 })
   discount: number;
 
-  @Column({ name: 'discount_type', enum: ['percentage', 'fixed'], default: 'percentage' })
+  @Column({ 
+    name: 'discount_type', 
+    type: 'varchar', 
+    length: 20,
+    default: 'percentage' 
+  })
   discountType: 'percentage' | 'fixed';
 
   @Column({ type: 'decimal', precision: 10, scale: 2 })

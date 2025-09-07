@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { SubscriptionPlan } from '../subscription-plan/entities/subscription-plan.entity';
 import { SubscriptionPlanFeature } from '../subscription-plan/entities/subscription-plan-feature.entity';
+import { EmailTemplatesSeedService } from './email-templates.seed';
 
 @Injectable()
 export class SeedService {
@@ -11,6 +12,7 @@ export class SeedService {
     private readonly planRepository: Repository<SubscriptionPlan>,
     @InjectRepository(SubscriptionPlanFeature)
     private readonly featureRepository: Repository<SubscriptionPlanFeature>,
+    private readonly emailTemplatesSeedService: EmailTemplatesSeedService,
   ) {}
 
   async seedSubscriptionPlans() {
@@ -90,5 +92,19 @@ export class SeedService {
     }
 
     console.log('✅ Subscription Plans seeded successfully!');
+  }
+
+  async seedEmailTemplates() {
+    console.log('🌱 Seeding Email Templates...');
+    await this.emailTemplatesSeedService.seed();
+    console.log('✅ Email Templates seeded successfully!');
+  }
+
+
+  async seedAll() {
+    console.log('🌱 Starting comprehensive seeding...');
+    await this.seedSubscriptionPlans();
+    await this.seedEmailTemplates();
+    console.log('🎉 All seeding completed!');
   }
 }

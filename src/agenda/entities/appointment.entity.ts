@@ -3,6 +3,7 @@ import {
   PrimaryGeneratedColumn,
   Column,
   ManyToOne,
+  JoinColumn,
   CreateDateColumn,
   UpdateDateColumn,
 } from 'typeorm';
@@ -53,9 +54,12 @@ export class Appointment {
   @ManyToOne(() => User, { 
     eager: true, 
     nullable: true 
-    // El comentario fue eliminado de aquí
   })
+  @JoinColumn({ name: 'professional_id' })
   professional?: User;
+
+  @Column({ name: 'professional_id', nullable: true })
+  professionalId?: number;
 
   @ManyToOne(() => Client, (client) => client.appointments, { 
     nullable: true, 

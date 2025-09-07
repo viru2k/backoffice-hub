@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Recordatorio de Cita - Orbyt</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 0; padding: 20px; background-color: #f5f5f5; }
+        .container { max-width: 600px; margin: 0 auto; background-color: white; padding: 30px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .header { text-align: center; margin-bottom: 30px; }
+        .logo { color: #007bff; font-size: 24px; font-weight: bold; }
+        .reminder-box { background-color: #fff3cd; border: 1px solid #ffeaa7; padding: 20px; border-radius: 5px; margin: 20px 0; }
+        .appointment-details { background-color: #f8f9fa; padding: 20px; border-radius: 5px; margin: 20px 0; }
+        .detail-row { margin: 10px 0; }
+        .label { font-weight: bold; color: #333; }
+        .value { color: #666; }
+        .cta-button { display: inline-block; background-color: #007bff; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; margin: 20px 0; }
+        .footer { margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee; text-align: center; color: #666; font-size: 14px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="logo">Orbyt</div>
+            <h1 style="color: #333; margin: 20px 0;">🔔 Recordatorio de Cita</h1>
+        </div>
+        
+        <div class="reminder-box">
+            <h3 style="margin: 0 0 10px 0; color: #856404;">¡No olvide su cita!</h3>
+            <p style="margin: 0; color: #856404;">Su cita está programada para {{timeUntil}}.</p>
+        </div>
+        
+        <p>Estimado/a <strong>{{clientName}}</strong>,</p>
+        
+        <p>Le recordamos que tiene una cita programada:</p>
+        
+        <div class="appointment-details">
+            <div class="detail-row">
+                <span class="label">Fecha:</span>
+                <span class="value">{{appointmentDate}}</span>
+            </div>
+            <div class="detail-row">
+                <span class="label">Hora:</span>
+                <span class="value">{{appointmentTime}}</span>
+            </div>
+            <div class="detail-row">
+                <span class="label">Servicio:</span>
+                <span class="value">{{serviceName}}</span>
+            </div>
+            <div class="detail-row">
+                <span class="label">Profesional:</span>
+                <span class="value">{{professionalName}}</span>
+            </div>
+            {{#if location}}
+            <div class="detail-row">
+                <span class="label">Ubicación:</span>
+                <span class="value">{{location}}</span>
+            </div>
+            {{/if}}
+        </div>
+        
+        <div style="text-align: center;">
+            {{#if confirmationUrl}}
+            <a href="{{confirmationUrl}}" class="cta-button">Confirmar Asistencia</a>
+            {{/if}}
+            {{#if rescheduleUrl}}
+            <a href="{{rescheduleUrl}}" style="color: #007bff; text-decoration: none; margin-left: 20px;">Reprogramar</a>
+            {{/if}}
+        </div>
+        
+        <p><strong>Recordatorios importantes:</strong></p>
+        <ul>
+            <li>Llegue 10 minutos antes de su cita</li>
+            <li>Traiga documentación necesaria</li>
+            <li>Si no puede asistir, cancele con al menos 24 horas de anticipación</li>
+        </ul>
+        
+        <div class="footer">
+            <p>¿Necesita reprogramar? Contáctenos a: {{supportPhone}} o {{supportEmail}}</p>
+            <p>Este es un mensaje automático, por favor no responda a este email.</p>
+        </div>
+    </div>
+</body>
+</html>

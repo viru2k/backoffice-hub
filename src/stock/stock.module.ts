@@ -9,6 +9,6 @@ import { StockController } from './stock.controller';
   imports: [TypeOrmModule.forFeature([StockMovement, Product])],
   providers: [StockService],
   controllers: [StockController],
-  exports: [TypeOrmModule],
+  exports: [StockService, TypeOrmModule],
 })
 export class StockModule {}

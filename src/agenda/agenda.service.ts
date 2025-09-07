@@ -18,7 +18,8 @@ import { BookAppointmentDto } from './dto/book-appointment.dto';
 import { BlockDatesDto } from './dto/block-dates.dto';
 import { BulkConfigUpdateDto } from './dto/bulk-config-update.dto';
 import { DayOverrideDto } from './dto/day-override.dto';
-import { addMinutes, format, isBefore, parseISO } from 'date-fns'; // Importar parseISO
+import { CalendarAvailabilityDto, CalendarAvailabilityQueryDto, DayAvailabilityDto, DayStatus } from './dto/calendar-availability.dto';
+import { addMinutes, format, isBefore, parseISO, startOfMonth, endOfMonth, eachDayOfInterval, getDay, startOfDay, endOfDay, isAfter, isSameDay } from 'date-fns';
 import { RegisterProductsUsedDto } from './dto/register-products-used.dto';
 import { Product } from '../product/entities/product.entity';
 import { AppointmentProductLog } from './entities/appointment-product-log.entity';
@@ -28,6 +29,7 @@ import { STATUS_COLORS } from './constants/colors';
 import { Service } from './entities/service.entity';
 import { Room } from './entities/room.entity';
 import { DataSource } from 'typeorm';
+import { RewardsService } from '../rewards/rewards.service';
 
 const STATUS_TRANSITIONS: Record<AppointmentStatus, AppointmentStatus[]> = {
   [AppointmentStatus.PENDING]: [AppointmentStatus.CONFIRMED, AppointmentStatus.CANCELLED, AppointmentStatus.NO_SHOW],
@@ -67,6 +69,7 @@ export class AgendaService {
     private readonly serviceRepo: Repository<Service>,
     @InjectRepository(Room)
     private readonly roomRepo: Repository<Room>,
+    private readonly rewardsService: RewardsService,
   ) {}
 
   private async getDefaultSlotDuration(userId: number): Promise<number> {
@@ -259,8 +262,19 @@ export class AgendaService {
         appointment.professional = professional;
       }
     }
+
+    const updatedAppointment = await this.appointmentRepo.save(appointment);
+
+    // Integración con sistema de recompensas cuando se completa la cita
+    if (dto.status === AppointmentStatus.COMPLETED && appointment.client?.id) {
+      try {
+        await this.rewardsService.onAppointmentCompleted(appointment.client.id);
+      } catch (error) {
+        console.error('Error updating rewards for appointment completion:', error);
+      }
+    }
     
-    return this.appointmentRepo.save(appointment);
+    return updatedAppointment;
   }
 
 
@@ -454,11 +468,20 @@ async getAvailableSlots(date: string, professionalUserId: number) {
 
   // Feriados (adaptar 'user' a 'professional')
 async addHoliday(dto: CreateHolidayDto, professionalUserId: number): Promise<Holiday> {
-  const professionalUser = await this.userRepo.findOneBy({id: professionalUserId}); // Buscamos el User
+  const professionalUser = await this.userRepo.findOneBy({id: professionalUserId});
   if(!professionalUser) throw new NotFoundException(`Profesional con ID ${professionalUserId} no encontrado.`);
-  const exists = await this.holidayRepo.findOne({ where: { user: { id: professionalUserId }, date: dto.date } });
-  if (exists) throw new BadRequestException('Ya existe un feriado en esa fecha para este profesional.')
-  const holiday = this.holidayRepo.create({ ...dto, user: professionalUser }); 
+  
+  // Convertir la fecha ISO a formato YYYY-MM-DD
+  const dateOnly = new Date(dto.date).toISOString().split('T')[0];
+  
+  const exists = await this.holidayRepo.findOne({ where: { user: { id: professionalUserId }, date: dateOnly } });
+  if (exists) throw new BadRequestException('Ya existe un feriado en esa fecha para este profesional.');
+  
+  const holiday = this.holidayRepo.create({ 
+    date: dateOnly, 
+    reason: dto.reason, 
+    user: professionalUser 
+  }); 
   return this.holidayRepo.save(holiday);
 }
 
@@ -741,6 +764,195 @@ async addHoliday(dto: CreateHolidayDto, professionalUserId: number): Promise<Hol
       workingDays: availability.filter(d => d.isWorkingDay && !d.isHoliday && !d.isBlocked).length,
       blockedDays: availability.filter(d => d.isHoliday || d.isBlocked).length,
       days: availability
+    };
+  }
+
+  async getCalendarAvailability(query: CalendarAvailabilityQueryDto): Promise<CalendarAvailabilityDto> {
+    const { year, month, professionalId } = query;
+    
+    // Crear fechas para el mes completo
+    const monthStart = startOfMonth(new Date(year, month - 1, 1));
+    const monthEnd = endOfMonth(new Date(year, month - 1, 1));
+    const today = startOfDay(new Date());
+    
+    // Obtener todas las fechas del mes
+    const daysInMonth = eachDayOfInterval({ start: monthStart, end: monthEnd });
+    
+    // Obtener configuración de agenda del profesional
+    const agendaConfig = await this.agendaConfigRepo.findOne({
+      where: { user: { id: professionalId } }
+    });
+    
+    // Obtener feriados del mes
+    const holidays = await this.holidayRepo.find({
+      where: {
+        date: Between(monthStart.toISOString().split('T')[0], monthEnd.toISOString().split('T')[0]),
+        user: { id: professionalId }
+      }
+    });
+    
+    // Obtener días con override del mes
+    const dayOverrides = await this.dayOverrideRepo.find({
+      where: {
+        date: Between(monthStart.toISOString().split('T')[0], monthEnd.toISOString().split('T')[0]),
+        user: { id: professionalId }
+      }
+    });
+    
+    // Obtener todas las citas del mes
+    const appointments = await this.appointmentRepo.find({
+      where: {
+        professional: { id: professionalId },
+        startDateTime: Between(monthStart, monthEnd),
+        status: Not(In([AppointmentStatus.CANCELLED, AppointmentStatus.NO_SHOW]))
+      }
+    });
+    
+    // Agrupar citas por día
+    const appointmentsByDay = new Map<string, number>();
+    appointments.forEach(appointment => {
+      const dayKey = format(appointment.startDateTime, 'yyyy-MM-dd');
+      appointmentsByDay.set(dayKey, (appointmentsByDay.get(dayKey) || 0) + 1);
+    });
+    
+    // Calcular disponibilidad para cada día
+    const dayAvailabilities: DayAvailabilityDto[] = [];
+    let totalWorkingDays = 0;
+    let totalAvailableSlots = 0;
+    let totalBookedAppointments = 0;
+    
+    for (const date of daysInMonth) {
+      const dayKey = format(date, 'yyyy-MM-dd');
+      const dayOfWeek = getDay(date); // 0 = domingo, 1 = lunes, etc.
+      const isPast = isBefore(date, today);
+      const bookedAppointments = appointmentsByDay.get(dayKey) || 0;
+      
+      // Verificar si es feriado
+      const isHoliday = holidays.some(holiday => isSameDay(holiday.date, date));
+      
+      // Verificar si hay override para este día
+      const dayOverride = dayOverrides.find(override => isSameDay(override.date, date));
+      
+      // Determinar si es día laborable según configuración base
+      let isWorkingDay = false;
+      let workingHours = null;
+      
+      if (agendaConfig) {
+        switch (dayOfWeek) {
+          case 1: // Lunes
+            isWorkingDay = agendaConfig.mondayEnabled;
+            if (isWorkingDay) workingHours = { start: agendaConfig.mondayStart, end: agendaConfig.mondayEnd };
+            break;
+          case 2: // Martes
+            isWorkingDay = agendaConfig.tuesdayEnabled;
+            if (isWorkingDay) workingHours = { start: agendaConfig.tuesdayStart, end: agendaConfig.tuesdayEnd };
+            break;
+          case 3: // Miércoles
+            isWorkingDay = agendaConfig.wednesdayEnabled;
+            if (isWorkingDay) workingHours = { start: agendaConfig.wednesdayStart, end: agendaConfig.wednesdayEnd };
+            break;
+          case 4: // Jueves
+            isWorkingDay = agendaConfig.thursdayEnabled;
+            if (isWorkingDay) workingHours = { start: agendaConfig.thursdayStart, end: agendaConfig.thursdayEnd };
+            break;
+          case 5: // Viernes
+            isWorkingDay = agendaConfig.fridayEnabled;
+            if (isWorkingDay) workingHours = { start: agendaConfig.fridayStart, end: agendaConfig.fridayEnd };
+            break;
+          case 6: // Sábado
+            isWorkingDay = agendaConfig.saturdayEnabled;
+            if (isWorkingDay) workingHours = { start: agendaConfig.saturdayStart, end: agendaConfig.saturdayEnd };
+            break;
+          case 0: // Domingo
+            isWorkingDay = agendaConfig.sundayEnabled;
+            if (isWorkingDay) workingHours = { start: agendaConfig.sundayStart, end: agendaConfig.sundayEnd };
+            break;
+        }
+      }
+      
+      // Aplicar override si existe
+      if (dayOverride) {
+        isWorkingDay = !dayOverride.blocked;
+        if (isWorkingDay && dayOverride.startTime && dayOverride.endTime) {
+          workingHours = { start: dayOverride.startTime, end: dayOverride.endTime };
+        }
+      }
+      
+      // Calcular slots totales aproximados (slots de 30 min por defecto)
+      let totalSlots = 0;
+      if (isWorkingDay && workingHours && !isHoliday) {
+        const [startHour, startMin] = workingHours.start.split(':').map(Number);
+        const [endHour, endMin] = workingHours.end.split(':').map(Number);
+        const startMinutes = startHour * 60 + startMin;
+        const endMinutes = endHour * 60 + endMin;
+        const slotDuration = agendaConfig?.slotDuration || 30;
+        totalSlots = Math.floor((endMinutes - startMinutes) / slotDuration);
+      }
+      
+      const availableSlots = Math.max(0, totalSlots - bookedAppointments);
+      
+      // Determinar estado del día
+      let status: DayStatus;
+      let notes: string | undefined;
+      
+      if (isPast) {
+        status = DayStatus.PAST;
+        notes = 'Día pasado';
+      } else if (isHoliday) {
+        status = DayStatus.HOLIDAY;
+        notes = 'Feriado';
+      } else if (!isWorkingDay) {
+        status = DayStatus.UNAVAILABLE;
+        notes = 'Día no laborable';
+      } else if (dayOverride && dayOverride.blocked) {
+        status = DayStatus.BLOCKED;
+        notes = 'Día bloqueado';
+      } else if (availableSlots === 0 && totalSlots > 0) {
+        status = DayStatus.FULL;
+        notes = 'Agenda llena';
+      } else if (availableSlots > 0 && availableSlots <= totalSlots * 0.3) {
+        status = DayStatus.LIMITED;
+        notes = 'Pocas citas disponibles';
+      } else if (availableSlots > 0) {
+        status = DayStatus.AVAILABLE;
+        notes = 'Citas disponibles';
+      } else {
+        status = DayStatus.UNAVAILABLE;
+        notes = 'No disponible';
+      }
+      
+      const dayAvailability: DayAvailabilityDto = {
+        date: dayKey,
+        dayOfWeek,
+        status,
+        totalSlots,
+        availableSlots,
+        bookedAppointments,
+        isWorkingDay,
+        isHoliday,
+        isBlocked: dayOverride ? dayOverride.blocked : false,
+        workingHours,
+        notes
+      };
+      
+      dayAvailabilities.push(dayAvailability);
+      
+      // Acumular estadísticas
+      if (isWorkingDay && !isHoliday && !isPast) {
+        totalWorkingDays++;
+        totalAvailableSlots += availableSlots;
+      }
+      totalBookedAppointments += bookedAppointments;
+    }
+    
+    return {
+      year,
+      month,
+      days: dayAvailabilities,
+      totalWorkingDays,
+      totalAvailableSlots,
+      totalBookedAppointments,
+      generatedAt: new Date()
     };
   }
 }

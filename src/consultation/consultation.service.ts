@@ -1,12 +1,14 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, Between } from 'typeorm';
 import { Consultation } from './entities/consultation.entity';
 import { CreateConsultationDto } from './dto/create-consultation.dto';
 import { UpdateConsultationDto } from './dto/update-consultation.dto';
-import { FileUpload } from '../upload/entities/file-upload.entity';
+import { ConsultationFiltersDto } from './dto/consultation-filters.dto';
+import { FileUpload, EntityType } from '../upload/entities/file-upload.entity';
 import { NotificationGateway } from '../notification/notification.gateway';
 import { EmailService } from '../email/email.service';
+import { RewardsService } from '../rewards/rewards.service';
 
 @Injectable()
 export class ConsultationService {
@@ -17,6 +19,7 @@ export class ConsultationService {
     private readonly fileRepo: Repository<FileUpload>,
     private readonly notificationGateway: NotificationGateway,
     private readonly emailService: EmailService,
+    private readonly rewardsService: RewardsService,
   ) {}
 
   private generateConsultationNumber(): string {
@@ -54,24 +57,64 @@ export class ConsultationService {
 
   async findAll(
     userId: number,
-    page: number = 1,
-    limit: number = 10,
-    status?: string,
-    clientId?: number,
+    filters: ConsultationFiltersDto = {},
   ): Promise<{ data: Consultation[]; total: number; page: number; limit: number }> {
+    const { page = 1, limit = 10, clientId, status, date, today, fromDate, toDate, consultationTypeId, clientName } = filters;
+
     const query = this.consultationRepo
       .createQueryBuilder('consultation')
       .leftJoinAndSelect('consultation.client', 'client')
       .leftJoinAndSelect('consultation.user', 'user')
       .leftJoinAndSelect('consultation.appointment', 'appointment')
+      .leftJoinAndSelect('consultation.consultationType', 'consultationType')
+      .leftJoinAndSelect('consultationType.businessType', 'businessType')
       .where('consultation.userId = :userId', { userId });
 
+    // Filtros
     if (status) {
       query.andWhere('consultation.status = :status', { status });
     }
 
     if (clientId) {
       query.andWhere('consultation.clientId = :clientId', { clientId });
+    }
+
+    if (consultationTypeId) {
+      query.andWhere('consultation.consultationTypeId = :consultationTypeId', { consultationTypeId });
+    }
+
+    if (clientName) {
+      query.andWhere('client.fullname LIKE :clientName', { clientName: `%${clientName}%` });
+    }
+
+    // Filtros de fecha
+    if (today) {
+      const startOfDay = new Date();
+      startOfDay.setHours(0, 0, 0, 0);
+      const endOfDay = new Date();
+      endOfDay.setHours(23, 59, 59, 999);
+      query.andWhere('consultation.createdAt BETWEEN :startOfDay AND :endOfDay', { startOfDay, endOfDay });
+    } else if (date) {
+      const targetDate = new Date(date);
+      const startOfDay = new Date(targetDate);
+      startOfDay.setHours(0, 0, 0, 0);
+      const endOfDay = new Date(targetDate);
+      endOfDay.setHours(23, 59, 59, 999);
+      query.andWhere('consultation.createdAt BETWEEN :startOfDay AND :endOfDay', { startOfDay, endOfDay });
+    } else if (fromDate && toDate) {
+      const startDate = new Date(fromDate);
+      startDate.setHours(0, 0, 0, 0);
+      const endDate = new Date(toDate);
+      endDate.setHours(23, 59, 59, 999);
+      query.andWhere('consultation.createdAt BETWEEN :startDate AND :endDate', { startDate, endDate });
+    } else if (fromDate) {
+      const startDate = new Date(fromDate);
+      startDate.setHours(0, 0, 0, 0);
+      query.andWhere('consultation.createdAt >= :startDate', { startDate });
+    } else if (toDate) {
+      const endDate = new Date(toDate);
+      endDate.setHours(23, 59, 59, 999);
+      query.andWhere('consultation.createdAt <= :endDate', { endDate });
     }
 
     query
@@ -90,7 +133,6 @@ export class ConsultationService {
       relations: [
         'client',
         'user',
-        'appointment',
         'invoices',
         'files',
       ],
@@ -103,9 +145,8 @@ export class ConsultationService {
     // Cargar archivos asociados
     const files = await this.fileRepo.find({
       where: {
-        entityType: 'consultation',
+        entityType: EntityType.CONSULTATION,
         entityId: id,
-        userId,
       },
     });
 
@@ -159,6 +200,15 @@ export class ConsultationService {
       timestamp: new Date().toISOString(),
     });
 
+    // Integración con sistema de recompensas cuando se completa la consulta
+    if (status === 'completed') {
+      try {
+        await this.rewardsService.onConsultationCompleted(consultation.clientId);
+      } catch (error) {
+        console.error('Error updating rewards for consultation completion:', error);
+      }
+    }
+
     return this.findOne(id, userId);
   }
 
@@ -175,7 +225,7 @@ export class ConsultationService {
   async getClientHistory(clientId: number, userId: number): Promise<Consultation[]> {
     return this.consultationRepo.find({
       where: { clientId, userId },
-      relations: ['user', 'invoices', 'files'],
+      relations: ['client', 'user', 'invoices', 'files'],
       order: { createdAt: 'DESC' },
     });
   }
@@ -184,7 +234,8 @@ export class ConsultationService {
     const consultation = await this.findOne(consultationId, userId);
     
     const file = await this.fileRepo.findOne({
-      where: { id: fileId, userId },
+      where: { id: fileId },
+      relations: ['uploadedBy'],
     });
 
     if (!file) {
@@ -193,7 +244,7 @@ export class ConsultationService {
 
     // Actualizar la relación del archivo
     await this.fileRepo.update(fileId, {
-      entityType: 'consultation',
+      entityType: EntityType.CONSULTATION,
       entityId: consultationId,
     });
   }
@@ -203,12 +254,18 @@ export class ConsultationService {
       .createQueryBuilder('consultation')
       .select([
         'COUNT(*) as total',
-        'SUM(CASE WHEN status = "pending" THEN 1 ELSE 0 END) as pending',
-        'SUM(CASE WHEN status = "in_progress" THEN 1 ELSE 0 END) as inProgress',
-        'SUM(CASE WHEN status = "completed" THEN 1 ELSE 0 END) as completed',
-        'SUM(CASE WHEN status = "cancelled" THEN 1 ELSE 0 END) as cancelled',
+        'SUM(CASE WHEN consultation.status = :pending THEN 1 ELSE 0 END) as pending',
+        'SUM(CASE WHEN consultation.status = :inProgress THEN 1 ELSE 0 END) as inProgress',
+        'SUM(CASE WHEN consultation.status = :completed THEN 1 ELSE 0 END) as completed',
+        'SUM(CASE WHEN consultation.status = :cancelled THEN 1 ELSE 0 END) as cancelled',
       ])
       .where('consultation.userId = :userId', { userId })
+      .setParameters({
+        pending: 'pending',
+        inProgress: 'in_progress',
+        completed: 'completed',
+        cancelled: 'cancelled',
+      })
       .getRawOne();
 
     return {
@@ -226,16 +283,14 @@ export class ConsultationService {
     const tomorrow = new Date(today);
     tomorrow.setDate(tomorrow.getDate() + 1);
 
-    return this.consultationRepo.find({
-      where: {
-        userId,
-        createdAt: {
-          $gte: today,
-          $lt: tomorrow,
-        } as any,
-      },
-      relations: ['client', 'appointment'],
-      order: { startTime: 'ASC' },
-    });
+    return this.consultationRepo
+      .createQueryBuilder('consultation')
+      .leftJoinAndSelect('consultation.client', 'client')
+      .leftJoinAndSelect('consultation.user', 'user')
+      .where('consultation.userId = :userId', { userId })
+      .andWhere('consultation.createdAt >= :today', { today })
+      .andWhere('consultation.createdAt < :tomorrow', { tomorrow })
+      .orderBy('consultation.startTime', 'ASC')
+      .getMany();
   }
 }

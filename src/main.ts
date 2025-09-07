@@ -2,6 +2,7 @@ import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { ValidationPipe } from '@nestjs/common';
+import { DebugInterceptor } from './debug.interceptor';
 import * as dotenv from 'dotenv'; 
 
 dotenv.config();
@@ -13,11 +14,12 @@ async function bootstrap() {
   console.log('Después de dotenv.config() - DB_NAME:', process.env.DB_NAME);
 
   const app = await NestFactory.create(AppModule);
-  //app.useGlobalPipes(new ValidationPipe({ 
-  //  transform: true,
-  //  whitelist: true,
-  //  forbidNonWhitelisted: false
-  //}));
+  app.useGlobalInterceptors(new DebugInterceptor());
+  app.useGlobalPipes(new ValidationPipe({ 
+    transform: true,
+    whitelist: true,
+    forbidNonWhitelisted: false
+  }));
   const config = new DocumentBuilder()
     .setTitle('Backoffice Hub API')
     .setDescription('API del sistema SaaS modular de backoffice')

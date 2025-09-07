@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { BullModule } from '@nestjs/bull';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
@@ -15,15 +16,25 @@ import { ClientModule } from './client/client.module';
 import { SubscriptionPlanModule } from './subscription-plan/subscription-plan.module';
 import { SeedModule } from './seed/seed.module';
 import { FullFlowExtendedSeedService } from './seed/full-flow-extended.seed';
+import { BusinessTypeSeedService } from './seed/business-type.seed';
 import { PermissionsModule } from './permissions/permissions.module';
 import { UploadModule } from './upload/upload.module';
 import { EmailModule } from './email/email.module';
 import { ConsultationModule } from './consultation/consultation.module';
 import { InvoiceModule } from './invoice/invoice.module';
+import { DashboardModule } from './dashboard/dashboard.module';
+import { BusinessTypeModule } from './business-type/business-type.module';
+import { RewardsModule } from './rewards/rewards.module';
 
 
 @Module({
   imports: [
+    BullModule.forRoot({
+      redis: {
+        host: process.env.EMAIL_QUEUE_REDIS_HOST || 'localhost',
+        port: parseInt(process.env.EMAIL_QUEUE_REDIS_PORT, 10) || 6379,
+      },
+    }),
     AuthModule,
     UserModule,
     SubscriptionModule,
@@ -41,6 +52,9 @@ import { InvoiceModule } from './invoice/invoice.module';
     EmailModule,
     ConsultationModule,
     InvoiceModule,
+    DashboardModule,
+    BusinessTypeModule,
+    RewardsModule,
     TypeOrmModule.forRoot({
       type: 'mysql',
       host: process.env.DB_HOST,
@@ -53,6 +67,6 @@ import { InvoiceModule } from './invoice/invoice.module';
     }),
   ],
   controllers: [AppController],
-  providers: [AppService, FullFlowExtendedSeedService],
+  providers: [AppService, FullFlowExtendedSeedService, BusinessTypeSeedService],
 })
 export class AppModule {}

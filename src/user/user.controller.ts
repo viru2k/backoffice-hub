@@ -34,7 +34,7 @@ function mapUserToResponseDto(user: User): UserResponseDto {
   const response: UserResponseDto = {
     id: user.id,
     email: user.email,
-    fullName: user.fullName,
+    fullName: `${user.name || ''} ${user.lastName || ''}`.trim(),
     isAdmin: user.isAdmin,
     active: user.isActive,
     createdAt: user.createdAt.toISOString(),

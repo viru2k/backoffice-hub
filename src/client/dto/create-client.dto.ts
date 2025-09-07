@@ -24,6 +24,11 @@ export class CreateClientDto {
   @IsEmail()
   email?: string;
 
+  @ApiProperty({ example: 'ORB-20240101-1234', required: false })
+  @IsOptional()
+  @IsString()
+  membershipNumber?: string;
+
   @ApiProperty({ example: '+54 9 11 1234-5678', required: false })
   @IsOptional()
   phone?: string;

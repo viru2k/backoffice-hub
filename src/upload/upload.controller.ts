@@ -3,6 +3,7 @@ import {
   Post,
   Get,
   Delete,
+  Patch,
   Param,
   Query,
   Body,
@@ -13,6 +14,7 @@ import {
   Res,
   BadRequestException,
   ParseIntPipe,
+  ValidationPipe,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { AuthGuard } from '@nestjs/passport';
@@ -21,6 +23,7 @@ import { Response } from 'express';
 import { UploadService } from './upload.service';
 import { UploadFileDto } from './dto/upload-file.dto';
 import { FileUploadResponseDto } from './dto/file-upload-response.dto';
+import { UpdateFileEntityDto } from './dto/update-file-entity.dto';
 import { EntityType } from './entities/file-upload.entity';
 
 @ApiTags('upload')
@@ -62,14 +65,29 @@ export class UploadController {
   @ApiResponse({ status: 201, type: FileUploadResponseDto })
   async uploadFile(
     @UploadedFile() file: Express.Multer.File,
-    @Body() uploadDto: UploadFileDto,
+    @Body(new ValidationPipe({ transform: true, whitelist: true })) uploadDto: UploadFileDto,
     @Request() req,
   ): Promise<FileUploadResponseDto> {
+    console.log('Upload DTO received:', uploadDto);
+    console.log('Upload DTO entityId:', uploadDto.entityId, typeof uploadDto.entityId);
+
     if (!file) {
       throw new BadRequestException('No se proporcionó archivo');
     }
 
     return this.uploadService.uploadFile(file, uploadDto, req.user);
+  }
+
+  @Patch(':id/entity')
+  @ApiOperation({ summary: 'Asociar archivo a una entidad' })
+  @ApiResponse({ status: 200, type: FileUploadResponseDto, description: 'Archivo actualizado exitosamente' })
+  @ApiResponse({ status: 404, description: 'Archivo no encontrado' })
+  async updateFileEntity(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() updateDto: UpdateFileEntityDto,
+    @Request() req,
+  ): Promise<FileUploadResponseDto> {
+    return this.uploadService.updateFileEntity(id, updateDto, req.user);
   }
 
   @Get('entity/:entityType/:entityId')

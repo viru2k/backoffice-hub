@@ -1,6 +1,6 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, In } from 'typeorm';
 import { User } from './entities/user.entity';
 import * as bcrypt from 'bcryptjs';
 import { CreateSubUserDto } from './dto/create-sub-user.dto';
@@ -51,7 +51,7 @@ async createSubUser(dto: CreateSubUserDto, owner: User): Promise<User> {
     let roles = [];
     if (dto.roles && dto.roles.length > 0) {
       const roleIds = dto.roles.map(role => role.id);
-      roles = await this.roleRepository.findByIds(roleIds);
+      roles = await this.roleRepository.findBy({ id: roleIds.length > 0 ? In(roleIds) : undefined });
       if (roles.length !== roleIds.length) {
         throw new BadRequestException('Uno o más roles son inválidos.');
       }
@@ -133,7 +133,7 @@ async createSubUser(dto: CreateSubUserDto, owner: User): Promise<User> {
     if (dto.roles !== undefined) {
       if (dto.roles.length > 0) {
         const roleIds = dto.roles.map(role => role.id);
-        const roles = await this.roleRepository.findByIds(roleIds);
+        const roles = await this.roleRepository.findBy({ id: roleIds.length > 0 ? In(roleIds) : undefined });
         if (roles.length !== roleIds.length) {
           throw new BadRequestException('Uno o más roles son inválidos.');
         }

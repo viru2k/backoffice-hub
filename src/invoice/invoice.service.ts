@@ -57,22 +57,37 @@ export class InvoiceService {
       // Crear los items de la factura
       const items = [];
       for (const itemDto of createDto.items) {
+        // Calcular total del item antes de crear la entidad
+        const subtotal = itemDto.quantity * Number(itemDto.unitPrice);
+        const discountAmount = itemDto.discountType === 'percentage'
+          ? (subtotal * (itemDto.discount || 0)) / 100
+          : (itemDto.discount || 0);
+        const total = subtotal - discountAmount;
+
         const item = this.invoiceItemRepo.create({
           ...itemDto,
           invoiceId: savedInvoice.id,
-          total: 0,
+          total: total,
         });
 
-        // Calcular total del item
-        item.calculateTotal();
         const savedItem = await queryRunner.manager.save(InvoiceItem, item);
         items.push(savedItem);
       }
 
       // Recalcular totales de la factura
-      savedInvoice.items = items;
-      savedInvoice.calculateTotals();
-      await queryRunner.manager.save(Invoice, savedInvoice);
+      const invoiceWithItems = await queryRunner.manager.findOne(Invoice, {
+        where: { id: savedInvoice.id },
+        relations: ['items'],
+      });
+      invoiceWithItems.calculateTotals();
+
+      // Actualizar solo los campos calculados, no toda la entidad
+      await queryRunner.manager.update(Invoice, savedInvoice.id, {
+        subtotal: invoiceWithItems.subtotal,
+        tax: invoiceWithItems.tax,
+        total: invoiceWithItems.total,
+        remainingAmount: invoiceWithItems.remainingAmount,
+      });
 
       await queryRunner.commitTransaction();
 
@@ -175,13 +190,19 @@ export class InvoiceService {
         // Crear nuevos items
         const items = [];
         for (const itemDto of updateDto.items) {
+          // Calcular total del item antes de crear la entidad
+          const subtotal = itemDto.quantity * Number(itemDto.unitPrice);
+          const discountAmount = itemDto.discountType === 'percentage'
+            ? (subtotal * (itemDto.discount || 0)) / 100
+            : (itemDto.discount || 0);
+          const total = subtotal - discountAmount;
+
           const item = this.invoiceItemRepo.create({
             ...itemDto,
             invoiceId: id,
-            total: 0,
+            total: total,
           });
 
-          item.calculateTotal();
           const savedItem = await queryRunner.manager.save(InvoiceItem, item);
           items.push(savedItem);
         }
@@ -191,9 +212,15 @@ export class InvoiceService {
           where: { id },
           relations: ['items'],
         });
-        updatedInvoice.items = items;
         updatedInvoice.calculateTotals();
-        await queryRunner.manager.save(Invoice, updatedInvoice);
+
+        // Actualizar solo los campos calculados, no toda la entidad
+        await queryRunner.manager.update(Invoice, id, {
+          subtotal: updatedInvoice.subtotal,
+          tax: updatedInvoice.tax,
+          total: updatedInvoice.total,
+          remainingAmount: updatedInvoice.remainingAmount,
+        });
       }
 
       await queryRunner.commitTransaction();

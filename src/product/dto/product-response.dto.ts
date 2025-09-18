@@ -17,6 +17,9 @@ export class ProductResponseDto {
   @ApiProperty()
   currentPrice: number;
 
+  @ApiProperty({ required: false, description: 'Avatar URL or null if no image' })
+  avatarUrl?: string;
+
   @ApiProperty()
   createdAt: string;
 

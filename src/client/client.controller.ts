@@ -17,6 +17,7 @@ import {
   import { ClientService } from './client.service';
   import { CreateClientDto } from './dto/create-client.dto';
   import { UpdateClientDto } from './dto/update-client.dto';
+  import { DeactivateClientDto } from './dto/deactivate-client.dto';
   import { ApiBearerAuth, ApiOperation, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
   import { AuthGuard } from '@nestjs/passport';
 import { ClientResponseDto } from './dto/client-response.dto';
@@ -35,9 +36,17 @@ function mapClientToDto(client: Client): ClientResponseDto {
     email: client.email,
     phone: client.phone,
     address: client.address,
+    gender: client.gender,
+    birthDate: client.birthDate?.toISOString(),
+    dniType: client.dniType,
+    dniNumber: client.dniNumber,
     status: client.status,
-    createdAt: client.createdAt.toISOString(), 
-    updatedAt: client.updatedAt.toISOString(), 
+    avatarUrl: client.avatarUrl,
+    isActive: client.isActive,
+    deactivatedAt: client.deactivatedAt?.toISOString(),
+    deactivationReason: client.deactivationReason,
+    createdAt: client.createdAt.toISOString(),
+    updatedAt: client.updatedAt.toISOString(),
   };
 }
 
@@ -75,8 +84,36 @@ function mapClientToDto(client: Client): ClientResponseDto {
   @Get()
   @ApiOperation({ summary: 'Listar clientes (admin puede ver los de un sub-usuario)' })
   @ApiQuery({ name: 'userId', required: false, type: Number, description: 'Admin: ID del usuario cuyos clientes se quieren ver' })
+  @ApiQuery({ name: 'includeInactive', required: false, type: Boolean, description: 'Include deactivated clients in the response' })
   @ApiResponse({ status: 200, type: [ClientResponseDto] })
   async findAll(
+    @Request() req,
+    @Query('userId') userId?: string,
+    @Query('includeInactive') includeInactive?: string,
+  ): Promise<ClientResponseDto[]> {
+    const requestingUser = req.user;
+    const targetUserId = userId ? parseInt(userId, 10) : requestingUser.id;
+    const includeInactiveBool = includeInactive === 'true';
+
+    if (targetUserId !== requestingUser.id) {
+      if (!requestingUser.isAdmin) {
+        throw new ForbiddenException('No tienes permisos para ver los clientes de otros usuarios.');
+      }
+      const isMember = await this.userService.isUserInAdminGroup(targetUserId, requestingUser.id);
+      if (!isMember) {
+        throw new ForbiddenException('El usuario especificado no pertenece a su grupo.');
+      }
+    }
+
+    const clients = await this.clientService.findAll(requestingUser, targetUserId, includeInactiveBool);
+    return clients.map(mapClientToDto);
+  }
+
+  @Get('active-only')
+  @ApiOperation({ summary: 'Obtener solo clientes activos (para uso en citas y servicios)' })
+  @ApiQuery({ name: 'userId', required: false, type: Number, description: 'Admin: ID del usuario cuyos clientes activos se quieren ver' })
+  @ApiResponse({ status: 200, type: [ClientResponseDto] })
+  async findActiveClients(
     @Request() req,
     @Query('userId') userId?: string,
   ): Promise<ClientResponseDto[]> {
@@ -93,10 +130,10 @@ function mapClientToDto(client: Client): ClientResponseDto {
       }
     }
 
-    const clients = await this.clientService.findAll(requestingUser, targetUserId);
+    const clients = await this.clientService.findActiveClients(requestingUser, targetUserId);
     return clients.map(mapClientToDto);
   }
-  
+
 @Get(':id')
 @ApiOperation({ summary: 'Obtener detalles de un cliente (admin puede ver los de un sub-usuario)' })
 @ApiQuery({ name: 'userId', required: false, type: Number, description: 'Admin: ID del usuario dueño del cliente' })
@@ -132,11 +169,33 @@ function mapClientToDto(client: Client): ClientResponseDto {
     return mapClientToDto(client);
   }
 
+  @Patch(':id/deactivate')
+  @Permissions('client:manage:group')
+  @ApiOperation({ summary: 'Desactivar un cliente (soft delete)' })
+  @ApiResponse({ status: 200, type: ClientResponseDto })
+  async deactivate(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() deactivateDto: DeactivateClientDto,
+    @Request() req
+  ): Promise<ClientResponseDto> {
+    const client = await this.clientService.deactivate(id, deactivateDto, req.user);
+    return mapClientToDto(client);
+  }
+
+  @Patch(':id/reactivate')
+  @Permissions('client:manage:group')
+  @ApiOperation({ summary: 'Reactivar un cliente desactivado' })
+  @ApiResponse({ status: 200, type: ClientResponseDto })
+  async reactivate(@Param('id', ParseIntPipe) id: number, @Request() req): Promise<ClientResponseDto> {
+    const client = await this.clientService.reactivate(id, req.user);
+    return mapClientToDto(client);
+  }
+
   @Delete(':id')
   @Permissions('client:manage:group')
   @HttpCode(HttpStatus.NO_CONTENT)
-  @ApiOperation({ summary: 'Eliminar un cliente' })
-  @ApiResponse({ status: 204, description: 'Cliente eliminado exitosamente.' })
+  @ApiOperation({ summary: 'Eliminar un cliente permanentemente (no recomendado)' })
+  @ApiResponse({ status: 204, description: 'Cliente eliminado permanentemente.' })
   async remove(@Param('id', ParseIntPipe) id: number, @Request() req): Promise<void> {
     await this.clientService.remove(id, req.user);
   }

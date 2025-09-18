@@ -1,5 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { IsEnum, IsOptional, IsInt, IsString } from 'class-validator';
+import { Transform, Type } from 'class-transformer';
 import { EntityType, FileType } from '../entities/file-upload.entity';
 
 export class UploadFileDto {
@@ -21,13 +22,11 @@ export class UploadFileDto {
   @IsOptional()
   entityType?: EntityType = EntityType.GENERAL;
 
-  @ApiProperty({ 
+  @ApiProperty({
     description: 'ID de la entidad al que pertenece el archivo',
-    required: false 
+    required: false
   })
-  @IsInt()
-  @IsOptional()
-  entityId?: number;
+  entityId?: any;
 
   @ApiProperty({ 
     description: 'Descripción del archivo',

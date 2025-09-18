@@ -46,7 +46,16 @@ export class UploadService {
     uploadDto: UploadFileDto,
     user: User,
   ): Promise<FileUploadResponseDto> {
-    // Validaciones
+    // Validar y convertir entityId si está presente
+    let entityId: number | undefined;
+    if (uploadDto.entityId !== undefined && uploadDto.entityId !== null && uploadDto.entityId !== '') {
+      entityId = parseInt(uploadDto.entityId.toString(), 10);
+      if (isNaN(entityId)) {
+        throw new BadRequestException('entityId must be a valid integer');
+      }
+    }
+
+    // Validaciones del archivo
     this.validateFile(file, uploadDto.fileType);
 
     // Generar nombre único
@@ -81,7 +90,7 @@ export class UploadService {
         thumbnailPath,
         fileType: uploadDto.fileType || FileType.IMAGE,
         entityType: uploadDto.entityType || EntityType.GENERAL,
-        entityId: uploadDto.entityId,
+        entityId: entityId,
         description: uploadDto.description,
         uploadedBy: user,
       });
@@ -223,6 +232,36 @@ export class UploadService {
       console.warn('Error generando thumbnail:', error.message);
       return undefined;
     }
+  }
+
+  async updateFileEntity(
+    fileId: number,
+    updateData: { entityType?: EntityType; entityId?: number; description?: string },
+    user: User
+  ): Promise<FileUploadResponseDto> {
+    const file = await this.fileUploadRepo.findOne({
+      where: { id: fileId, uploadedBy: { id: user.id } },
+      relations: ['uploadedBy'],
+    });
+
+    if (!file) {
+      throw new NotFoundException('Archivo no encontrado o no tienes permiso para modificarlo');
+    }
+
+    // Actualizar los campos proporcionados
+    if (updateData.entityType !== undefined) {
+      file.entityType = updateData.entityType;
+    }
+    if (updateData.entityId !== undefined) {
+      file.entityId = updateData.entityId;
+    }
+    if (updateData.description !== undefined) {
+      file.description = updateData.description;
+    }
+
+    await this.fileUploadRepo.save(file);
+
+    return this.mapToResponseDto(file);
   }
 
   private mapToResponseDto(file: FileUpload): FileUploadResponseDto {

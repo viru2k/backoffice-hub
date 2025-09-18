@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, In } from 'typeorm';
 import { Role } from './entities/role.entity';
 import { CreateRoleDto } from './dto/create-role.dto';
 import { UpdateRoleDto } from './dto/update-role.dto';
@@ -26,7 +26,7 @@ export class RolesService {
     const role = this.roleRepository.create({ name, description });
 
     if (permissionIds && permissionIds.length > 0) {
-      const permissions = await this.permissionRepository.findByIds(permissionIds);
+      const permissions = await this.permissionRepository.findBy({ id: permissionIds.length > 0 ? In(permissionIds) : undefined });
       if (permissions.length !== permissionIds.length) {
         throw new BadRequestException('One or more permission IDs are invalid.');
       }
@@ -62,7 +62,7 @@ export class RolesService {
 
     if (updateRoleDto.permissionIds !== undefined) {
       if (updateRoleDto.permissionIds.length > 0) {
-        const permissions = await this.permissionRepository.findByIds(updateRoleDto.permissionIds);
+        const permissions = await this.permissionRepository.findBy({ id: updateRoleDto.permissionIds.length > 0 ? In(updateRoleDto.permissionIds) : undefined });
         if (permissions.length !== updateRoleDto.permissionIds.length) {
           throw new BadRequestException('One or more permission IDs are invalid.');
         }

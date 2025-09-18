@@ -25,6 +25,8 @@ import { InvoiceModule } from './invoice/invoice.module';
 import { DashboardModule } from './dashboard/dashboard.module';
 import { BusinessTypeModule } from './business-type/business-type.module';
 import { RewardsModule } from './rewards/rewards.module';
+import { InventoryModule } from './inventory/inventory.module';
+import { RoomModule } from './room/room.module';
 
 
 @Module({
@@ -55,6 +57,8 @@ import { RewardsModule } from './rewards/rewards.module';
     DashboardModule,
     BusinessTypeModule,
     RewardsModule,
+    InventoryModule,
+    RoomModule,
     TypeOrmModule.forRoot({
       type: 'mysql',
       host: process.env.DB_HOST,

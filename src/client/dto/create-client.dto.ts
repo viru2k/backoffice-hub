@@ -43,8 +43,18 @@ export class CreateClientDto {
   @IsDateString()
   birthDate?: string;
 
+  @ApiProperty({ enum: ['DNI', 'NIE', 'PASAPORTE'], required: false })
+  @IsOptional()
+  @IsEnum(['DNI', 'NIE', 'PASAPORTE'])
+  dniType?: 'DNI' | 'NIE' | 'PASAPORTE';
+
+  @ApiProperty({ example: '12345678A', required: false })
+  @IsOptional()
+  @IsString()
+  dniNumber?: string;
+
   @ApiPropertyOptional({
-    enum: ClientStatus, 
+    enum: ClientStatus,
     default: ClientStatus.CREATED,
   })
   @IsOptional()

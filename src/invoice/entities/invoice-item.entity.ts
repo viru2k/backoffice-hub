@@ -51,7 +51,7 @@ export class InvoiceItem {
   })
   discountType: 'percentage' | 'fixed';
 
-  @Column({ type: 'decimal', precision: 10, scale: 2 })
+  @Column({ type: 'decimal', precision: 10, scale: 2, default: 0 })
   total: number;
 
   @Column({ type: 'text', nullable: true })

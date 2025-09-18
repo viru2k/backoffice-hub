@@ -1,0 +1,1 @@
+This is a test file simulating an image upload for testing purposes.

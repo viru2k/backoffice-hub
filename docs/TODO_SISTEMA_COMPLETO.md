@@ -457,11 +457,67 @@ Este archivo contiene todas las tareas necesarias para implementar el sistema co
 - **Frontend completo de recompensas** (especificación creada en `REWARDS_AND_EMAIL_FRONTEND_IMPLEMENTATION_GUIDE.md`)
 - **Frontend sistema de consultas por tipo de negocio** (selector, formularios dinámicos, vista contextual)
 - **Sistema de búsqueda de clientes para recompensas** (endpoint `/rewards/client-search?query={term}`)
+- **Sistema completo de Salas/Rooms** (ver sección ROOMS BACKEND)
 - **Seeding de templates por defecto en BD** (EmailTemplatesSeedService listo para ejecutar)
 - **Configuración de Redis para producción** (Bull queues preparadas)
 - **Variables de entorno para email system** (EMAIL_ENCRYPTION_KEY, EMAIL_QUEUE_REDIS_*)
-- **Migraciones de BD** (para entidades EmailSettings, EmailTemplate, EmailLog)
+- **Migraciones de BD** (para entidades EmailSettings, EmailTemplate, EmailLog, Room)
 - **Integración con User/Agenda modules** (hooks para welcome emails, appointment reminders)
+
+---
+
+## 🏢 SISTEMA DE SALAS/ROOMS BACKEND
+
+### ⚠️ ESTADO ACTUAL: NO IMPLEMENTADO
+El frontend de salas existe (`src/app/features/rooms/`) pero **NO HAY BACKEND** correspondiente.
+Los appointments hacen referencia a `roomId` pero no existe el módulo de salas.
+
+### Fase 1: Estructura Backend Base ❌ PENDIENTE
+- [ ] **Crear módulo Rooms**
+  - 📁 `src/rooms/rooms.module.ts`
+  - 📁 `src/rooms/rooms.controller.ts` 
+  - 📁 `src/rooms/rooms.service.ts`
+
+### Fase 2: Entidad de Base de Datos ❌ PENDIENTE
+- [ ] **Crear entidad Room**
+  - 📁 `src/rooms/entities/room.entity.ts`
+  - 🏗️ Campos: id, name, description, isActive, capacity, location, createdAt, updatedAt
+  - 🏗️ Relaciones: OneToMany con Appointment (roomId foreign key)
+
+### Fase 3: DTOs de Validación ❌ PENDIENTE
+- [ ] **CreateRoomDto**
+  - 🏗️ Validaciones: name required, description optional, capacity optional, location optional
+- [ ] **UpdateRoomDto**
+  - 🏗️ Partial de CreateRoomDto
+- [ ] **RoomResponseDto**
+  - 🏗️ DTO de respuesta con todos los campos de Room
+
+### Fase 4: Endpoints del Controlador ❌ PENDIENTE
+- [ ] **CRUD completo de Rooms**
+  - 🚨 `GET /rooms` - Listar salas (con filtro activas/inactivas)
+  - 🚨 `GET /rooms/:id` - Obtener sala específica
+  - 🚨 `POST /rooms` - Crear nueva sala
+  - 🚨 `PUT /rooms/:id` - Actualizar sala
+  - 🚨 `DELETE /rooms/:id` - Eliminar/desactivar sala
+- [ ] **Endpoints adicionales**
+  - 🚨 `GET /rooms/active` - Solo salas activas (para selectors)
+  - 🚨 `PATCH /rooms/:id/toggle` - Activar/desactivar sala
+
+### Fase 5: Integración con Agenda ❌ PENDIENTE
+- [ ] **Actualizar AppointmentModule**
+  - 🔗 Importar RoomsModule
+  - 🔗 Validar que roomId existe al crear/actualizar cita
+  - 🔗 Include room data en appointment responses
+- [ ] **Seeder para datos iniciales**
+  - 🌱 Crear 3-5 salas por defecto para testing
+  - 🌱 `npm run seed:rooms`
+
+### 🚨 IMPACTO CRÍTICO
+**Sin este sistema:**
+- ❌ El selector de salas en agenda-form está vacío (mock data actualmente)
+- ❌ Los appointments tienen roomId pero no se pueden validar
+- ❌ No se pueden gestionar salas desde el frontend
+- ❌ Inconsistencia entre frontend y backend
 
 ---
 
@@ -470,8 +526,9 @@ Este archivo contiene todas las tareas necesarias para implementar el sistema co
 **Para continuar con el sistema:**
 
 ### Prioridad Alta 🚨
-1. **Seed templates por defecto:** `npm run seed:email-templates` (EmailTemplatesSeedService)
-2. **Variables de entorno:** Agregar a `.env`:
+1. **🏢 IMPLEMENTAR SISTEMA DE SALAS:** Backend completo para rooms (crítico para agenda)
+2. **Seed templates por defecto:** `npm run seed:email-templates` (EmailTemplatesSeedService)
+3. **Variables de entorno:** Agregar a `.env`:
    ```env
    EMAIL_ENCRYPTION_KEY=tu-clave-32-caracteres-aqui
    EMAIL_QUEUE_REDIS_HOST=localhost

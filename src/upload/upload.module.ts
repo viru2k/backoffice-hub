@@ -3,6 +3,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { MulterModule } from '@nestjs/platform-express';
 import { memoryStorage } from 'multer';
 import { UploadController } from './upload.controller';
+import { TestUploadController } from './test-upload.controller';
 import { UploadService } from './upload.service';
 import { FileUpload } from './entities/file-upload.entity';
 
@@ -17,7 +18,7 @@ import { FileUpload } from './entities/file-upload.entity';
       },
     }),
   ],
-  controllers: [UploadController],
+  controllers: [UploadController, TestUploadController],
   providers: [UploadService],
   exports: [UploadService],
 })

@@ -34,6 +34,7 @@ function mapProductToResponseDto(product: Product): ProductResponseDto {
     description: product.description,
     status: product.status,
     currentPrice: product.currentPrice,
+    avatarUrl: product.avatarUrl,
     createdAt: product.createdAt.toISOString(),
     updatedAt: product.updatedAt.toISOString(),
     owner: product.owner ? { // Verifica si owner existe
@@ -51,6 +52,7 @@ function mapProductToDto(product: Product): ProductResponseDto {
     description: product.description,
     status: product.status,
     currentPrice: product.currentPrice,
+    avatarUrl: product.avatarUrl,
     createdAt: product.createdAt.toISOString(),
     updatedAt: product.updatedAt.toISOString(),
     owner: {

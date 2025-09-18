@@ -33,8 +33,14 @@ export class ClientResponseDto {
   @ApiProperty({ required: false })
   birthDate?: string;
 
- @ApiProperty({ 
-    enum: ClientStatus, 
+  @ApiProperty({ enum: ['DNI', 'NIE', 'PASAPORTE'], required: false, description: 'Tipo de documento de identidad' })
+  dniType?: 'DNI' | 'NIE' | 'PASAPORTE';
+
+  @ApiProperty({ required: false, description: 'Número de documento de identidad' })
+  dniNumber?: string;
+
+ @ApiProperty({
+    enum: ClientStatus,
     description: 'Estado actual del cliente',
     example: ClientStatus.ACTIVE,
   })
@@ -42,6 +48,18 @@ export class ClientResponseDto {
 
   @ApiProperty({ required: false })
   notes?: string;
+
+  @ApiProperty({ required: false, description: 'Avatar URL or null if no image' })
+  avatarUrl?: string;
+
+  @ApiProperty({ description: 'Indicates if client is active (soft delete)' })
+  isActive: boolean;
+
+  @ApiProperty({ required: false, description: 'Date when client was deactivated' })
+  deactivatedAt?: string;
+
+  @ApiProperty({ required: false, description: 'Reason for deactivation' })
+  deactivationReason?: string;
 
   @ApiProperty()
   createdAt: string;

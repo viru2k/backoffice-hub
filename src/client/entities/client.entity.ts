@@ -44,17 +44,65 @@ export class Client {
   @Column({ type: 'date', nullable: true })
   birthDate?: Date;
 
+  @Column({ nullable: true })
+  dniType?: 'DNI' | 'NIE' | 'PASAPORTE';
+
+  @Column({ nullable: true })
+  dniNumber?: string;
+
   @Column({ type: 'text', nullable: true })
   notes?: string;
   
+  // Portal de clientes - campos agregados
+  @Column({ default: false })
+  hasPortalAccess: boolean;
 
+  @Column({ nullable: true })
+  password?: string;
 
- @Column({
+  @Column({ type: 'datetime', nullable: true })
+  lastLogin?: Date;
+
+  @Column({ nullable: true })
+  passwordResetToken?: string;
+
+  @Column({ type: 'datetime', nullable: true })
+  passwordResetExpires?: Date;
+
+  @Column({ nullable: true })
+  preferredName?: string;
+
+  @Column({ type: 'text', nullable: true })
+  personalNotes?: string;
+
+  @Column({ nullable: true })
+  emailVerificationToken?: string;
+
+  @Column({ nullable: true })
+  avatarUrl?: string;
+
+  @Column({ type: 'text', nullable: true })
+  adminNotes?: string;
+
+  @Column({
     type: 'enum',
-    enum: ClientStatus, 
-    default: ClientStatus.CREATED, 
+    enum: ClientStatus,
+    default: ClientStatus.CREATED,
   })
   status: ClientStatus;
+
+  // Soft delete fields
+  @Column({ default: true })
+  isActive: boolean;
+
+  @Column({ type: 'datetime', nullable: true })
+  deactivatedAt?: Date;
+
+  @Column({ nullable: true })
+  deactivatedBy?: number;
+
+  @Column({ type: 'text', nullable: true })
+  deactivationReason?: string;
 
   @CreateDateColumn()
   createdAt: Date;

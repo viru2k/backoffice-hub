@@ -6,10 +6,12 @@ import {
   UpdateDateColumn,
   ManyToOne,
   OneToMany,
+  OneToOne,
 } from 'typeorm';
 import { User } from './../../user/entities/user.entity';
 import { ProductPriceHistory } from './product-price-history.entity';
 import { StockMovement } from './../../stock/entities/stock-movement.entity';
+import { ProductInventoryConfig } from '../../inventory/entities/product-inventory-config.entity';
 
 @Entity()
 export class Product {
@@ -28,6 +30,9 @@ export class Product {
   @Column('decimal', { precision: 10, scale: 2 })
   currentPrice: number;
 
+  @Column({ nullable: true })
+  avatarUrl?: string;
+
   @ManyToOne(() => User, { eager: true })
   owner: User;
 
@@ -41,6 +46,9 @@ export class Product {
 
   @OneToMany(() => StockMovement, (movement) => movement.product)
 stockMovements: StockMovement[];
+
+  @OneToOne(() => ProductInventoryConfig, (config) => config.product)
+  inventoryConfig: ProductInventoryConfig;
 
   @CreateDateColumn()
   createdAt: Date;
